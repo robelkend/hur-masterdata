@@ -1,0 +1,21 @@
+package com.rsoft.hurmanagement.hurmasterdata.dto;
+
+import lombok.Data;
+import java.time.OffsetDateTime;
+
+@Data
+public class CoordonneeBancaireEmployeDTO {
+    private Long id;
+    private Long employeId;
+    private Long banqueId;
+    private String banqueCode;
+    private String banqueNom;
+    private String numeroCompte;
+    private String categorie;
+    private String actif;
+    private String createdBy;
+    private OffsetDateTime createdOn;
+    private String updatedBy;
+    private OffsetDateTime updatedOn;
+    private Integer rowscn;
+}

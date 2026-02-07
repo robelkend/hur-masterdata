@@ -1,0 +1,2 @@
+ALTER TABLE payroll_deduction
+    ADD COLUMN IF NOT EXISTS montant_couvert NUMERIC(18,2) NOT NULL DEFAULT 0;

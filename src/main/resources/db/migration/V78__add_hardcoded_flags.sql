@@ -1,0 +1,8 @@
+ALTER TABLE rubrique_paie
+    ADD COLUMN IF NOT EXISTS hardcoded CHAR(1) NOT NULL DEFAULT 'N';
+
+ALTER TABLE rubrique_prestation
+    ADD COLUMN IF NOT EXISTS hardcoded CHAR(1) NOT NULL DEFAULT 'N';
+
+ALTER TABLE type_revenu
+    ADD COLUMN IF NOT EXISTS hardcoded CHAR(1) NOT NULL DEFAULT 'N';

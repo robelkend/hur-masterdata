@@ -1,0 +1,18 @@
+ALTER TABLE interface_loading
+    ADD COLUMN rdb_url VARCHAR(255),
+    ADD COLUMN rdb_driver VARCHAR(120),
+    ADD COLUMN rdb_username VARCHAR(100),
+    ADD COLUMN rdb_password VARCHAR(200),
+    ADD COLUMN rdb_schema VARCHAR(120),
+    ADD COLUMN rdb_query TEXT,
+    ADD COLUMN api_base_url VARCHAR(255),
+    ADD COLUMN api_endpoint VARCHAR(255),
+    ADD COLUMN api_method VARCHAR(10),
+    ADD COLUMN api_auth_type VARCHAR(20),
+    ADD COLUMN api_username VARCHAR(100),
+    ADD COLUMN api_password VARCHAR(200),
+    ADD COLUMN api_token VARCHAR(500),
+    ADD COLUMN api_headers TEXT,
+    ADD COLUMN api_query_params TEXT,
+    ADD COLUMN api_body TEXT,
+    ADD COLUMN api_timeout_ms INTEGER;

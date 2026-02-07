@@ -1,0 +1,42 @@
+CREATE TABLE IF NOT EXISTS presence_employe (
+    id BIGSERIAL PRIMARY KEY,
+    entreprise_id BIGINT,
+    employe_id BIGINT NOT NULL,
+    date_jour DATE NOT NULL,
+    date_depart DATE,
+    heure_arrivee VARCHAR(10) NOT NULL,
+    heure_depart VARCHAR(10),
+    nuit_planifiee CHAR(1) NOT NULL DEFAULT 'N' CHECK (nuit_planifiee IN ('Y', 'N')),
+    heure_debut_prevue VARCHAR(10),
+    heure_fin_prevue VARCHAR(10),
+    type_employe_id BIGINT,
+    regime_paie_id BIGINT,
+    id_horaire BIGINT,
+    horaire_special CHAR(1) NOT NULL DEFAULT 'N' CHECK (horaire_special IN ('Y', 'N')),
+    automatique CHAR(1) NOT NULL DEFAULT 'N' CHECK (automatique IN ('Y', 'N')),
+    generer_supplementaire CHAR(1) NOT NULL DEFAULT 'Y' CHECK (generer_supplementaire IN ('Y', 'N')),
+    supplementaire_genere CHAR(1) NOT NULL DEFAULT 'N' CHECK (supplementaire_genere IN ('Y', 'N')),
+    generer_boni CHAR(1) NOT NULL DEFAULT 'Y' CHECK (generer_boni IN ('Y', 'N')),
+    boni_genere CHAR(1) NOT NULL DEFAULT 'N' CHECK (boni_genere IN ('Y', 'N')),
+    source_saisie VARCHAR(20) NOT NULL DEFAULT 'MANUEL',
+    statut_presence VARCHAR(20) NOT NULL DEFAULT 'BROUILLON',
+    nb_heures_sup NUMERIC(10,2) NOT NULL DEFAULT 0,
+    no_supplementaire INTEGER NOT NULL DEFAULT 0,
+    fermeture_manuelle CHAR(1) NOT NULL DEFAULT 'Y' CHECK (fermeture_manuelle IN ('Y', 'N')),
+    commentaire TEXT,
+    type_erreur VARCHAR(20),
+    details JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_by VARCHAR(100) NOT NULL,
+    created_on TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(100),
+    updated_on TIMESTAMP WITH TIME ZONE,
+    rowscn INTEGER NOT NULL DEFAULT 1,
+    CONSTRAINT fk_presence_employe_entreprise FOREIGN KEY (entreprise_id) REFERENCES entreprise(id),
+    CONSTRAINT fk_presence_employe_employe FOREIGN KEY (employe_id) REFERENCES employe(id),
+    CONSTRAINT fk_presence_employe_type_employe FOREIGN KEY (type_employe_id) REFERENCES type_employe(id),
+    CONSTRAINT fk_presence_employe_regime_paie FOREIGN KEY (regime_paie_id) REFERENCES regime_paie(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_presence_employe_employe ON presence_employe(employe_id);
+CREATE INDEX IF NOT EXISTS idx_presence_employe_date_jour ON presence_employe(date_jour);
+CREATE INDEX IF NOT EXISTS idx_presence_employe_statut ON presence_employe(statut_presence);

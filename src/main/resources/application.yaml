@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: hur-masterdata
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/hurmanagement
+    username: postgres
+    password: finiese
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none   # ou update / validate selon ton besoin
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+server:
+  port: 9605
+
+security:
+  jwt:
+    secret: "change_this_secret_to_a_long_random_value_32chars_min"
+    accessTokenExpirationMinutes: 15
+    refreshTokenExpirationDays: 7
