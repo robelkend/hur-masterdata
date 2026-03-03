@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS horaire_dt (
     heure_fin_jour CHAR(5),
     heure_debut_nuit CHAR(5),
     heure_fin_nuit CHAR(5),
+    heure_debut_pause CHAR(5),
+    heure_fin_pause CHAR(5),
     exiger_presence CHAR(1) NOT NULL DEFAULT 'N' CHECK (exiger_presence IN ('Y', 'N')),
     heure_fermeture_auto CHAR(1) NOT NULL DEFAULT 'N' CHECK (heure_fermeture_auto IN ('Y', 'N')),
     

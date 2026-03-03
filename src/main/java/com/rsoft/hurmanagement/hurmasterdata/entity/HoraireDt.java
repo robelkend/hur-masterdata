@@ -36,6 +36,12 @@ public class HoraireDt {
     
     @Column(name = "heure_fin_nuit", length = 5)
     private String heureFinNuit; // format HH:mi
+
+    @Column(name = "heure_debut_pause", length = 5)
+    private String heureDebutPause; // format HH:mi
+
+    @Column(name = "heure_fin_pause", length = 5)
+    private String heureFinPause; // format HH:mi
     
     @Column(name = "exiger_presence", nullable = false, length = 1)
     private String exigerPresence; // 'Y' or 'N', default 'N'

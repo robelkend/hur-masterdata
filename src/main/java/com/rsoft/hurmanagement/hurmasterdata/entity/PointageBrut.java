@@ -60,6 +60,9 @@ public class PointageBrut {
     @JoinColumn(name = "presence_employe_id")
     private PresenceEmploye presenceEmploye;
 
+    @Column(name = "no_presence")
+    private Long noPresence;
+
     @Column(name = "traite_le")
     private OffsetDateTime traiteLe;
 

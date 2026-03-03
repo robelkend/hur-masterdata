@@ -17,6 +17,8 @@ public interface EntrepriseRepository extends JpaRepository<Entreprise, Long> {
     List<Entreprise> findByActif(String actif);
     
     Optional<Entreprise> findFirstByActif(String actif);
+
+    Optional<Entreprise> findFirstByEntrepriseMereIsNullOrderByIdAsc();
     
     List<Entreprise> findAllByOrderByCodeEntrepriseAsc();
 }

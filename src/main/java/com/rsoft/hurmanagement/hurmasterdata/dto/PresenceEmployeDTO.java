@@ -39,6 +39,7 @@ public class PresenceEmployeDTO {
     private String sourceSaisie;
     private String statutPresence;
     private BigDecimal nbHeuresSup;
+    private Integer cumulPauseMin;
     private Integer noSupplementaire;
     private String fermetureManuelle;
     private String commentaire;

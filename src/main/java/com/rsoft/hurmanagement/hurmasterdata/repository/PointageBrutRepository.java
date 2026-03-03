@@ -52,4 +52,6 @@ public interface PointageBrutRepository extends JpaRepository<PointageBrut, Long
             Long employeId, OffsetDateTime dateHeurePointage);
 
     boolean existsByEmployeIdAndDateHeurePointageBetween(Long employeId, OffsetDateTime start, OffsetDateTime end);
+
+    List<PointageBrut> findByPresenceEmployeIdOrderByDateHeurePointageAsc(Long presenceEmployeId);
 }

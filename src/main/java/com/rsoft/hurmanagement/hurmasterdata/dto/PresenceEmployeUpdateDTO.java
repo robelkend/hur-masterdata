@@ -29,6 +29,8 @@ public class PresenceEmployeUpdateDTO {
 
     private String heureDepart;
 
+    private Integer cumulPauseMin;
+
     private String commentaire;
 
     private String sourceSaisie = "MANUEL";

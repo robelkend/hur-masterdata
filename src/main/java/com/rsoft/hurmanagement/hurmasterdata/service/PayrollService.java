@@ -179,6 +179,7 @@ public class PayrollService {
         List<EmployeSalaire> salaires = employeSalaireRepository
                 .findActifsByRegimePaie(payroll.getRegimePaie().getId());
         boolean applyTaxesCycle = shouldApplyTaxes(regimePaie, payroll);
+        boolean applySupplementsCycle = shouldApplySupplements(regimePaie, payroll);
 
         for (EmployeSalaire salaire : salaires) {
             PayrollEmploye payrollEmploye = buildPayrollEmploye(payroll, salaire, username);
@@ -191,7 +192,7 @@ public class PayrollService {
                         salaireBase, "SYSTEME", null, username));
             }
 
-            BigDecimal supplementaire = computeSupplementaire(salaire.getEmploye(), payroll, payrollEmploye, rubriqueSupplementaire, username);
+            BigDecimal supplementaire = computeSupplementaire(salaire, regimePaie, payroll, payrollEmploye, rubriqueSupplementaire, username, applySupplementsCycle);
             payrollEmploye.setMontantSupplementaire(supplementaire);
 
             BigDecimal autreRevenu = computeAutreRevenu(salaire, payroll, payrollEmploye, rubriqueAutreRevenu, username);
@@ -219,6 +220,17 @@ public class PayrollService {
             payrollEmploye.setMontantDeductions(deductions);
 
             BigDecimal net = brut.subtract(deductions.add(recouvrements).add(sanctions));
+            if (isYes(regimePaie.getBloquerNetNegatif()) && net.compareTo(BigDecimal.ZERO) < 0) {
+                Employe employe = salaire.getEmploye();
+                String code = employe != null && employe.getCodeEmploye() != null ? employe.getCodeEmploye().trim() : "";
+                String nom = employe != null && employe.getNom() != null ? employe.getNom().trim() : "";
+                String prenom = employe != null && employe.getPrenom() != null ? employe.getPrenom().trim() : "";
+                String label = (code + " - " + nom + " " + prenom).trim();
+                if (label.startsWith("-")) {
+                    label = label.substring(1).trim();
+                }
+                throw new RuntimeException("Paie bloquée: net négatif pour employé " + (label.isBlank() ? "(inconnu)" : label));
+            }
             payrollEmploye.setMontantNetAPayer(net);
 
             payrollEmploye.setUpdatedBy(username);
@@ -292,6 +304,27 @@ public class PayrollService {
                     pretEmployeRepository.save(pret);
                 }
             }
+        }
+
+        RegimePaie regimePaie = payroll.getRegimePaie() != null && payroll.getRegimePaie().getId() != null
+                ? regimePaieRepository.findById(payroll.getRegimePaie().getId()).orElse(null)
+                : null;
+        if (regimePaie != null) {
+            LocalDate dateFin = payroll.getDateFin();
+            regimePaie.setDernierePaie(dateFin);
+            regimePaie.setProchainePaie(computeNextPayrollDate(dateFin, regimePaie.getPeriodicite(), 1));
+            boolean taxesApplied = shouldApplyTaxes(regimePaie, payroll);
+            if (taxesApplied) {
+                regimePaie.setDernierPrelevement(dateFin);
+            }
+            boolean supplementsApplied = shouldApplySupplements(regimePaie, payroll);
+            if (supplementsApplied) {
+                regimePaie.setDernierSupplement(dateFin);
+            }
+            regimePaie.setProchainSupplement(computeNextSupplementDate(regimePaie, payroll, supplementsApplied));
+            regimePaie.setUpdatedBy(username);
+            regimePaie.setUpdatedOn(OffsetDateTime.now());
+            regimePaieRepository.save(regimePaie);
         }
 
         payroll.setStatut(Payroll.StatutPayroll.VALIDE);
@@ -473,8 +506,20 @@ public class PayrollService {
         return dailyRate.multiply(BigDecimal.valueOf(Math.max(days, 0))).setScale(2, RoundingMode.HALF_UP);
     }
 
-    private BigDecimal computeSupplementaire(Employe employe, Payroll payroll, PayrollEmploye payrollEmploye,
-                                             RubriquePaie rubriqueSupplementaire, String username) {
+    private BigDecimal computeSupplementaire(EmployeSalaire salaire,
+                                             RegimePaie regimePaie,
+                                             Payroll payroll,
+                                             PayrollEmploye payrollEmploye,
+                                             RubriquePaie rubriqueSupplementaire,
+                                             String username,
+                                             boolean applySupplements) {
+        if (salaire == null || !isYes(salaire.getPrincipal())) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        if (!applySupplements) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        Employe employe = salaire.getEmploye();
         BigDecimal total = BigDecimal.ZERO;
         List<SupplementaireEmploye> supplementaires = supplementaireEmployeRepository
                 .findValidesForPayroll(
@@ -685,6 +730,80 @@ public class PayrollService {
         }
         long sequence = completed + 1;
         return sequence % taxeEvery == 0;
+    }
+
+    private boolean shouldApplySupplements(RegimePaie regimePaie, Payroll payroll) {
+        if (regimePaie == null || payroll == null) {
+            return true;
+        }
+        Integer suppEvery = regimePaie.getSuppChaqueNPaies();
+        if (suppEvery == null || suppEvery <= 1) {
+            return true;
+        }
+        int decalage = regimePaie.getSuppDecalageNbPaies() != null ? regimePaie.getSuppDecalageNbPaies() : 0;
+        LocalDate lastSuppDate = regimePaie.getDernierSupplement();
+        long completed = countCompletedPayrolls(regimePaie.getId(), lastSuppDate, payroll.getDateFin());
+        long sequence = completed + 1 + Math.max(decalage, 0);
+        return sequence % suppEvery == 0;
+    }
+
+    private long countCompletedPayrolls(Long regimePaieId, LocalDate lastDate, LocalDate currentDateFin) {
+        if (regimePaieId == null || currentDateFin == null) {
+            return 0;
+        }
+        List<Payroll.StatutPayroll> statuts = List.of(Payroll.StatutPayroll.VALIDE, Payroll.StatutPayroll.FINALISE);
+        if (lastDate != null) {
+            return payrollRepository.countByRegimePaieIdAndStatutInAndDateFinRange(
+                    regimePaieId,
+                    statuts,
+                    lastDate,
+                    currentDateFin
+            );
+        }
+        return payrollRepository.countByRegimePaieIdAndStatutInAndDateFinBeforeOrEqual(
+                regimePaieId,
+                statuts,
+                currentDateFin
+        );
+    }
+
+    private LocalDate computeNextPayrollDate(LocalDate dateFin, RegimePaie.Periodicite periodicite, int periodsToAdd) {
+        if (dateFin == null || periodicite == null) {
+            return dateFin;
+        }
+        int periods = Math.max(periodsToAdd, 1);
+        return switch (periodicite) {
+            case JOURNALIER -> dateFin.plusDays(periods);
+            case HEBDO -> dateFin.plusWeeks(periods);
+            case QUINZAINE -> dateFin.plusDays(14L * periods);
+            case QUINZOMADAIRE -> dateFin.plusDays(15L * periods);
+            case MENSUEL -> dateFin.plusMonths(periods);
+            case TRIMESTRIEL -> dateFin.plusMonths(3L * periods);
+            case SEMESTRIEL -> dateFin.plusMonths(6L * periods);
+            case ANNUEL -> dateFin.plusYears(periods);
+        };
+    }
+
+    private LocalDate computeNextSupplementDate(RegimePaie regimePaie, Payroll payroll, boolean appliedThisPayroll) {
+        if (regimePaie == null || payroll == null || payroll.getDateFin() == null) {
+            return null;
+        }
+        Integer suppEvery = regimePaie.getSuppChaqueNPaies();
+        if (suppEvery == null || suppEvery <= 1) {
+            return computeNextPayrollDate(payroll.getDateFin(), regimePaie.getPeriodicite(), 1);
+        }
+        int decalage = regimePaie.getSuppDecalageNbPaies() != null ? regimePaie.getSuppDecalageNbPaies() : 0;
+        if (appliedThisPayroll) {
+            return computeNextPayrollDate(payroll.getDateFin(), regimePaie.getPeriodicite(), suppEvery);
+        }
+        LocalDate lastSuppDate = regimePaie.getDernierSupplement();
+        long completed = countCompletedPayrolls(regimePaie.getId(), lastSuppDate, payroll.getDateFin());
+        long sequence = completed + 1 + Math.max(decalage, 0);
+        int remainder = (int) (suppEvery - (sequence % suppEvery));
+        if (remainder == 0) {
+            remainder = suppEvery;
+        }
+        return computeNextPayrollDate(payroll.getDateFin(), regimePaie.getPeriodicite(), remainder);
     }
 
     private BigDecimal computeDeductions(EmployeSalaire salaire, PayrollEmploye payrollEmploye, String username) {

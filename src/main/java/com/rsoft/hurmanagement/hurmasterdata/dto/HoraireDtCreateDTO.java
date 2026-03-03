@@ -12,6 +12,8 @@ public class HoraireDtCreateDTO {
     private String heureFinJour; // format HH:mi
     private String heureDebutNuit; // format HH:mi
     private String heureFinNuit; // format HH:mi
+    private String heureDebutPause; // format HH:mi
+    private String heureFinPause; // format HH:mi
     private String exigerPresence; // 'Y' or 'N', default 'N' if null
     private String heureFermetureAuto; // 'Y' or 'N', default 'N' if null
 }

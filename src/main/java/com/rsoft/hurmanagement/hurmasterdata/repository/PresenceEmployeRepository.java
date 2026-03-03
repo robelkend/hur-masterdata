@@ -36,6 +36,36 @@ public interface PresenceEmployeRepository extends JpaRepository<PresenceEmploye
             @Param("employeId") Long employeId,
             @Param("entrepriseId") Long entrepriseId);
 
+    @Query("SELECT p FROM PresenceEmploye p " +
+           "LEFT JOIN EmploiEmploye ee ON ee.employe = p.employe " +
+           "AND ee.principal = 'Y' " +
+           "AND ee.dateDebut <= p.dateJour " +
+           "AND (ee.dateFin IS NULL OR ee.dateFin >= p.dateJour) " +
+           "WHERE p.dateJour >= :dateDebut AND p.dateJour <= :dateFin " +
+           "AND (:entrepriseId IS NULL OR p.entreprise.id = :entrepriseId) " +
+           "AND (:employeId IS NULL OR p.employe.id = :employeId) " +
+           "AND (:actif IS NULL OR p.employe.actif = :actif) " +
+           "AND (:typeEmployeId IS NULL OR ee.typeEmploye.id = :typeEmployeId OR p.typeEmploye.id = :typeEmployeId) " +
+           "AND (:uniteOrganisationnelleId IS NULL OR ee.uniteOrganisationnelle.id = :uniteOrganisationnelleId) " +
+           "AND (:gestionnaireId IS NULL OR ee.gestionnaire.id = :gestionnaireId) " +
+           "AND (:nuit IS NULL OR " +
+           "     (:nuit = 'Y' AND p.dateDepart IS NOT NULL AND p.dateDepart > p.dateJour) OR " +
+           "     (:nuit = 'N' AND (p.dateDepart IS NULL OR p.dateDepart <= p.dateJour))" +
+           ") " +
+           "AND (:regimePaieIds IS NULL OR p.regimePaie.id IN :regimePaieIds) " +
+           "ORDER BY p.employe.codeEmploye ASC, p.dateJour ASC, p.heureArrivee ASC")
+    java.util.List<PresenceEmploye> findForPresenceReport(
+            @Param("dateDebut") LocalDate dateDebut,
+            @Param("dateFin") LocalDate dateFin,
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("employeId") Long employeId,
+            @Param("actif") String actif,
+            @Param("typeEmployeId") Long typeEmployeId,
+            @Param("uniteOrganisationnelleId") Long uniteOrganisationnelleId,
+            @Param("gestionnaireId") Long gestionnaireId,
+            @Param("nuit") String nuit,
+            @Param("regimePaieIds") java.util.List<Long> regimePaieIds);
+
     PresenceEmploye findTopByEmployeIdAndDateJourAndStatutPresenceOrderByIdDesc(
             Long employeId,
             LocalDate dateJour,

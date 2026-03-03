@@ -83,10 +83,12 @@ public class PresenceEmployeService {
         entity.setDateDepart(dto.getDateDepart());
         entity.setHeureArrivee(dto.getHeureArrivee());
         entity.setHeureDepart(cleanTime(dto.getHeureDepart()));
+        entity.setCumulPauseMin(dto.getCumulPauseMin() != null ? dto.getCumulPauseMin() : 0);
         entity.setCommentaire(dto.getCommentaire());
         entity.setSourceSaisie(resolveSource(dto.getSourceSaisie()));
         entity.setAutomatique("N");
         entity.setFermetureManuelle("Y");
+        entity.setCumulPauseMin(0);
 
         applyDerivedFields(entity);
 
@@ -120,6 +122,9 @@ public class PresenceEmployeService {
         entity.setDateDepart(dto.getDateDepart());
         entity.setHeureArrivee(dto.getHeureArrivee());
         entity.setHeureDepart(cleanTime(dto.getHeureDepart()));
+        if (dto.getCumulPauseMin() != null) {
+            entity.setCumulPauseMin(dto.getCumulPauseMin());
+        }
         entity.setCommentaire(dto.getCommentaire());
         entity.setSourceSaisie(resolveSource(dto.getSourceSaisie()));
 
@@ -458,6 +463,7 @@ public class PresenceEmployeService {
         dto.setSourceSaisie(entity.getSourceSaisie() != null ? entity.getSourceSaisie().name() : null);
         dto.setStatutPresence(entity.getStatutPresence() != null ? entity.getStatutPresence().name() : null);
         dto.setNbHeuresSup(entity.getNbHeuresSup());
+        dto.setCumulPauseMin(entity.getCumulPauseMin());
         dto.setNoSupplementaire(entity.getNoSupplementaire());
         dto.setFermetureManuelle(entity.getFermetureManuelle());
         dto.setCommentaire(entity.getCommentaire());

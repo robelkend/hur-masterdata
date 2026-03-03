@@ -3,6 +3,7 @@ package com.rsoft.hurmanagement.hurmasterdata.service;
 import com.rsoft.hurmanagement.hurmasterdata.dto.PointageBrutCreateDTO;
 import com.rsoft.hurmanagement.hurmasterdata.dto.PointageBrutDTO;
 import com.rsoft.hurmanagement.hurmasterdata.dto.PointageBrutUpdateDTO;
+import com.rsoft.hurmanagement.hurmasterdata.dto.PointageBrutUsageDTO;
 import com.rsoft.hurmanagement.hurmasterdata.entity.Employe;
 import com.rsoft.hurmanagement.hurmasterdata.entity.Entreprise;
 import com.rsoft.hurmanagement.hurmasterdata.entity.InterfaceLoading;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -49,6 +51,14 @@ public class PointageBrutService {
         return toDTO(entity);
     }
 
+    @Transactional(readOnly = true)
+    public List<PointageBrutUsageDTO> findByPresenceEmployeId(Long presenceEmployeId) {
+        return repository.findByPresenceEmployeIdOrderByDateHeurePointageAsc(presenceEmployeId)
+                .stream()
+                .map(this::toUsageDTO)
+                .toList();
+    }
+
     @Transactional
     public PointageBrutDTO create(PointageBrutCreateDTO dto, String username) {
         PointageBrut entity = new PointageBrut();
@@ -62,6 +72,9 @@ public class PointageBrutService {
         entity.setQualitePointage(parseQualite(dto.getQualitePointage(), PointageBrut.QualitePointage.BRUT));
         entity.setMotifRejet(dto.getMotifRejet());
         entity.setStatutTraitement(parseStatut(dto.getStatutTraitement(), PointageBrut.StatutTraitement.BRUT));
+        if (dto.getNoPresence() != null) {
+            entity.setNoPresence(dto.getNoPresence());
+        }
         entity.setTraiteLe(dto.getTraiteLe());
         entity.setTraitePar(dto.getTraitePar());
         entity.setImporteLe(OffsetDateTime.now());
@@ -107,6 +120,9 @@ public class PointageBrutService {
         }
         if (dto.getStatutTraitement() != null) {
             entity.setStatutTraitement(parseStatut(dto.getStatutTraitement(), entity.getStatutTraitement()));
+        }
+        if (dto.getNoPresence() != null) {
+            entity.setNoPresence(dto.getNoPresence());
         }
         if (dto.getTraiteLe() != null) {
             entity.setTraiteLe(dto.getTraiteLe());
@@ -155,6 +171,7 @@ public class PointageBrutService {
             PresenceEmploye presence = presenceEmployeRepository.findById(presenceEmployeId)
                     .orElseThrow(() -> new RuntimeException("PresenceEmploye not found with id: " + presenceEmployeId));
             entity.setPresenceEmploye(presence);
+            entity.setNoPresence(presence.getId());
         }
     }
 
@@ -186,11 +203,23 @@ public class PointageBrutService {
         if (entity.getPresenceEmploye() != null) {
             dto.setPresenceEmployeId(entity.getPresenceEmploye().getId());
         }
+        dto.setNoPresence(entity.getNoPresence());
         dto.setTraiteLe(entity.getTraiteLe());
         dto.setTraitePar(entity.getTraitePar());
         dto.setImporteLe(entity.getImporteLe());
         dto.setImportePar(entity.getImportePar());
         dto.setRowscn(entity.getRowscn());
+        return dto;
+    }
+
+    private PointageBrutUsageDTO toUsageDTO(PointageBrut entity) {
+        PointageBrutUsageDTO dto = new PointageBrutUsageDTO();
+        dto.setSystemeSource(entity.getSystemeSource());
+        dto.setIdAppareil(entity.getIdAppareil());
+        dto.setIdBadge(entity.getIdBadge());
+        dto.setDateHeurePointage(entity.getDateHeurePointage());
+        dto.setQualitePointage(entity.getQualitePointage() != null ? entity.getQualitePointage().name() : null);
+        dto.setStatutTraitement(entity.getStatutTraitement() != null ? entity.getStatutTraitement().name() : null);
         return dto;
     }
 

@@ -91,6 +91,9 @@ public class PresenceEmploye {
     @Column(name = "nb_heures_sup", nullable = false, precision = 10, scale = 2)
     private BigDecimal nbHeuresSup = BigDecimal.ZERO;
 
+    @Column(name = "cumul_pause_min")
+    private Integer cumulPauseMin = 0;
+
     @Column(name = "no_supplementaire", nullable = false)
     private Integer noSupplementaire = 0;
 

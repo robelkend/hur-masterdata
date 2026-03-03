@@ -238,6 +238,8 @@ public class HoraireService {
             dt.setHeureFinJour(sourceDt.getHeureFinJour());
             dt.setHeureDebutNuit(sourceDt.getHeureDebutNuit());
             dt.setHeureFinNuit(sourceDt.getHeureFinNuit());
+            dt.setHeureDebutPause(sourceDt.getHeureDebutPause());
+            dt.setHeureFinPause(sourceDt.getHeureFinPause());
             dt.setExigerPresence(sourceDt.getExigerPresence());
             dt.setHeureFermetureAuto(sourceDt.getHeureFermetureAuto());
             dt.setCreatedBy(username);
@@ -263,6 +265,8 @@ public class HoraireService {
             dt.setHeureFinJour(dtDto.getHeureFinJour());
             dt.setHeureDebutNuit(dtDto.getHeureDebutNuit());
             dt.setHeureFinNuit(dtDto.getHeureFinNuit());
+            dt.setHeureDebutPause(dtDto.getHeureDebutPause());
+            dt.setHeureFinPause(dtDto.getHeureFinPause());
             dt.setExigerPresence(dtDto.getExigerPresence() != null ? dtDto.getExigerPresence() : "N");
             dt.setHeureFermetureAuto(dtDto.getHeureFermetureAuto() != null ? dtDto.getHeureFermetureAuto() : "N");
             dt.setCreatedBy(username);
@@ -295,6 +299,8 @@ public class HoraireService {
                 dt.setHeureFinJour(dtDto.getHeureFinJour());
                 dt.setHeureDebutNuit(dtDto.getHeureDebutNuit());
                 dt.setHeureFinNuit(dtDto.getHeureFinNuit());
+                dt.setHeureDebutPause(dtDto.getHeureDebutPause());
+                dt.setHeureFinPause(dtDto.getHeureFinPause());
                 dt.setExigerPresence(dtDto.getExigerPresence() != null ? dtDto.getExigerPresence() : "N");
                 dt.setHeureFermetureAuto(dtDto.getHeureFermetureAuto() != null ? dtDto.getHeureFermetureAuto() : "N");
                 dt.setUpdatedBy(username);
@@ -315,6 +321,8 @@ public class HoraireService {
                 dt.setHeureFinJour(dtDto.getHeureFinJour());
                 dt.setHeureDebutNuit(dtDto.getHeureDebutNuit());
                 dt.setHeureFinNuit(dtDto.getHeureFinNuit());
+                dt.setHeureDebutPause(dtDto.getHeureDebutPause());
+                dt.setHeureFinPause(dtDto.getHeureFinPause());
                 dt.setExigerPresence(dtDto.getExigerPresence() != null ? dtDto.getExigerPresence() : "N");
                 dt.setHeureFermetureAuto(dtDto.getHeureFermetureAuto() != null ? dtDto.getHeureFermetureAuto() : "N");
                 dt.setCreatedBy(username);
@@ -396,6 +404,8 @@ public class HoraireService {
         dto.setHeureFinJour(entity.getHeureFinJour());
         dto.setHeureDebutNuit(entity.getHeureDebutNuit());
         dto.setHeureFinNuit(entity.getHeureFinNuit());
+        dto.setHeureDebutPause(entity.getHeureDebutPause());
+        dto.setHeureFinPause(entity.getHeureFinPause());
         dto.setExigerPresence(entity.getExigerPresence());
         dto.setHeureFermetureAuto(entity.getHeureFermetureAuto());
         dto.setCreatedBy(entity.getCreatedBy());

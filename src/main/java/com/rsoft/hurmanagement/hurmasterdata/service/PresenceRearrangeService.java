@@ -31,6 +31,7 @@ public class PresenceRearrangeService {
     private final HoraireSpecialRepository horaireSpecialRepository;
     private final HoraireDtRepository horaireDtRepository;
     private final PresenceEmployeService presenceEmployeService;
+    private final PresenceMergeService presenceMergeService;
 
     @Transactional
     public Map<String, Object> closeAndRearrange(String dateDebut,
@@ -43,8 +44,18 @@ public class PresenceRearrangeService {
         if (fin.isBefore(debut)) {
             throw new RuntimeException("Invalid date range");
         }
+        int merged = presenceMergeService.mergeForRange(debut, fin, employeId, entrepriseId, username);
+
         LocalDate today = LocalDate.now();
         List<PresenceEmploye> presences = presenceRepository.findForRearrange(debut, fin, employeId, entrepriseId);
+        Map<String, Integer> groupCounts = new HashMap<>();
+        for (PresenceEmploye presence : presences) {
+            if (presence.getEmploye() == null || presence.getDateJour() == null) {
+                continue;
+            }
+            String key = presence.getEmploye().getId() + "|" + presence.getDateJour();
+            groupCounts.put(key, groupCounts.getOrDefault(key, 0) + 1);
+        }
 
         int total = 0;
         int closed = 0;
@@ -59,13 +70,17 @@ public class PresenceRearrangeService {
             }
             PlanInfo plan = resolvePlan(presence);
             boolean updated = false;
-            if (closeIfNeeded(presence, plan)) {
-                closed++;
-                updated = true;
-            }
-            if (rearrangeIfNeeded(presence, plan)) {
-                rearranged++;
-                updated = true;
+            int countForDay = groupCounts.getOrDefault(
+                    presence.getEmploye().getId() + "|" + presence.getDateJour(), 1);
+            if (countForDay <= 1) {
+                if (closeIfNeeded(presence, plan)) {
+                    closed++;
+                    updated = true;
+                }
+                if (rearrangeIfNeeded(presence, plan)) {
+                    rearranged++;
+                    updated = true;
+                }
             }
             if (updated) {
                 presence.setAutomatique("Y");
@@ -83,8 +98,9 @@ public class PresenceRearrangeService {
         result.put("totalRows", total);
         result.put("closedRows", closed);
         result.put("rearrangedRows", rearranged);
+        result.put("mergedRows", merged);
         result.put("skippedToday", skippedToday);
-        result.put("message", "Closed " + closed + " and rearranged " + rearranged + " presences");
+        result.put("message", "Closed " + closed + ", rearranged " + rearranged + ", merged " + merged + " presences");
         return result;
     }
 
@@ -136,13 +152,9 @@ public class PresenceRearrangeService {
         if (arrivee == null || depart == null) {
             return false;
         }
-        boolean isDayPresence = presence.getDateDepart().equals(presence.getDateJour());
         boolean isNightPresence = presence.getDateDepart().isAfter(presence.getDateJour());
 
-        if (plan.hasNightPlan && isDayPresence) {
-            presence.setDateDepart(presence.getDateJour().plusDays(1));
-            presence.setHeureArrivee(depart);
-            presence.setHeureDepart(arrivee);
+        if (correctDayPresenceWithNightPlan(presence, plan)) {
             return true;
         }
         if (!plan.hasNightPlan && plan.hasDayPlan && isNightPresence) {
@@ -152,6 +164,27 @@ public class PresenceRearrangeService {
             return true;
         }
         return false;
+    }
+
+    private boolean correctDayPresenceWithNightPlan(PresenceEmploye presence, PlanInfo plan) {
+        if (plan == null || !plan.hasNightPlan) {
+            return false;
+        }
+        if (presence.getDateJour() == null || presence.getDateDepart() == null) {
+            return false;
+        }
+        if (!presence.getDateDepart().equals(presence.getDateJour())) {
+            return false;
+        }
+        String arrivee = trimToNull(presence.getHeureArrivee());
+        String depart = trimToNull(presence.getHeureDepart());
+        if (arrivee == null || depart == null) {
+            return false;
+        }
+        presence.setDateDepart(presence.getDateJour().plusDays(1));
+        presence.setHeureArrivee(depart);
+        presence.setHeureDepart(arrivee);
+        return true;
     }
 
     private PlanInfo resolvePlan(PresenceEmploye presence) {
@@ -192,7 +225,9 @@ public class PresenceRearrangeService {
         }
 
         if (horaire != null) {
-            plan.autoClose = plan.nightPlan ? horaire.getHeureFermetureAutoNuit() : horaire.getHeureFermetureAutoJour();
+            plan.autoCloseDay = horaire.getHeureFermetureAutoJour();
+            plan.autoCloseNight = horaire.getHeureFermetureAutoNuit();
+            plan.autoClose = plan.nightPlan ? plan.autoCloseNight : plan.autoCloseDay;
         }
         return plan;
     }
@@ -281,5 +316,7 @@ public class PresenceRearrangeService {
         String plannedStart;
         String plannedEnd;
         String autoClose;
+        String autoCloseDay;
+        String autoCloseNight;
     }
 }

@@ -3,6 +3,8 @@ package com.rsoft.hurmanagement.hurmasterdata.controller;
 import com.rsoft.hurmanagement.hurmasterdata.dto.PresenceEmployeCreateDTO;
 import com.rsoft.hurmanagement.hurmasterdata.dto.PresenceEmployeDTO;
 import com.rsoft.hurmanagement.hurmasterdata.dto.PresenceEmployeUpdateDTO;
+import com.rsoft.hurmanagement.hurmasterdata.dto.PointageBrutUsageDTO;
+import com.rsoft.hurmanagement.hurmasterdata.service.PointageBrutService;
 import com.rsoft.hurmanagement.hurmasterdata.service.PresenceAutoFillService;
 import com.rsoft.hurmanagement.hurmasterdata.service.PresenceEmployeService;
 import com.rsoft.hurmanagement.hurmasterdata.service.PresenceRearrangeService;
@@ -26,6 +28,7 @@ public class PresenceEmployeController {
     private final PresenceEmployeService service;
     private final PresenceRearrangeService rearrangeService;
     private final PresenceAutoFillService autoFillService;
+    private final PointageBrutService pointageBrutService;
 
     @GetMapping
     public ResponseEntity<Page<PresenceEmployeDTO>> findAll(
@@ -51,6 +54,11 @@ public class PresenceEmployeController {
     @GetMapping("/{id}")
     public ResponseEntity<PresenceEmployeDTO> findById(@PathVariable Long id) {
         return ResponseEntity.ok(service.findById(id));
+    }
+
+    @GetMapping("/{id}/pointages")
+    public ResponseEntity<java.util.List<PointageBrutUsageDTO>> findPointagesByPresence(@PathVariable Long id) {
+        return ResponseEntity.ok(pointageBrutService.findByPresenceEmployeId(id));
     }
 
     @PostMapping

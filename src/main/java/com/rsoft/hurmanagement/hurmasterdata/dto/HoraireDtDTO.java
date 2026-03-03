@@ -13,6 +13,8 @@ public class HoraireDtDTO {
     private String heureFinJour;
     private String heureDebutNuit;
     private String heureFinNuit;
+    private String heureDebutPause;
+    private String heureFinPause;
     private String exigerPresence;
     private String heureFermetureAuto;
     private String createdBy;
