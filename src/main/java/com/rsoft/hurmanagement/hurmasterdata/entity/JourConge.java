@@ -8,7 +8,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 @Entity
-@Table(name = "jour_conge")
+@Table(name = "jour_ferie")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

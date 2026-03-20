@@ -44,6 +44,11 @@ public class RubriquePaieController {
     public ResponseEntity<List<RubriquePaieDTO>> findAllImposable() {
         return ResponseEntity.ok(service.findAllImposable());
     }
+
+    @GetMapping("/boni")
+    public ResponseEntity<List<RubriquePaieDTO>> findAllBoni() {
+        return ResponseEntity.ok(service.findAllBoni());
+    }
     
     @GetMapping("/{id}")
     public ResponseEntity<RubriquePaieDTO> findById(@PathVariable Long id) {

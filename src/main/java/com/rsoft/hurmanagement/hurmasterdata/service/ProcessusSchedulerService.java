@@ -28,7 +28,7 @@ public class ProcessusSchedulerService {
     }
 
     private void executeJob(ProcessusParametre job, OffsetDateTime now, String username) {
-        if (!"Y".equalsIgnoreCase(job.getActif())) {
+        if (!isActiveFlag(job.getActif())) {
             return;
         }
         job.setStatut(ProcessusParametre.Statut.EN_EXECUTION);
@@ -53,6 +53,10 @@ public class ProcessusSchedulerService {
         job.setUpdatedBy(username);
         job.setUpdatedOn(OffsetDateTime.now());
         repository.save(job);
+    }
+
+    private boolean isActiveFlag(String actif) {
+        return "Y".equalsIgnoreCase(actif) || "O".equalsIgnoreCase(actif);
     }
 
     private OffsetDateTime computeNextExecution(ProcessusParametre job, OffsetDateTime base) {

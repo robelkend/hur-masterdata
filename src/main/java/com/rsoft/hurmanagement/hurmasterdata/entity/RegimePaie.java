@@ -31,6 +31,12 @@ public class RegimePaie {
     @Enumerated(EnumType.STRING)
     @Column(name = "periodicite", nullable = false, length = 20)
     private Periodicite periodicite;
+
+    @Column(name = "nb_periode_paie", nullable = false)
+    private Integer nbPeriodePaie;
+
+    @Column(name = "periode_paie_courante", nullable = false)
+    private Integer periodePaieCourante;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "devise_id", nullable = false)

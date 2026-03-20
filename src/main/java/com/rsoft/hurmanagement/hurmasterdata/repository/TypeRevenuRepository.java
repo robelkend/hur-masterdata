@@ -8,10 +8,19 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.util.Optional;
+import java.util.List;
 
 @Repository
 public interface TypeRevenuRepository extends JpaRepository<TypeRevenu, Long> {
     Optional<TypeRevenu> findByCodeRevenu(String codeRevenu);
+
+    @Query("SELECT t FROM TypeRevenu t WHERE " +
+           "(:entrepriseId IS NULL OR t.entreprise.id = :entrepriseId OR t.entreprise IS NULL) AND " +
+           "t.rubriquePaie.id = :rubriquePaieId AND " +
+           "t.actif = 'Y' ORDER BY t.id DESC")
+    List<TypeRevenu> findActifsByRubriquePaieAndEntreprisePreferEntreprise(
+            @Param("rubriquePaieId") Long rubriquePaieId,
+            @Param("entrepriseId") Long entrepriseId);
 
     @Query("SELECT t FROM TypeRevenu t WHERE " +
            "t.codeRevenu = :codeRevenu AND " +

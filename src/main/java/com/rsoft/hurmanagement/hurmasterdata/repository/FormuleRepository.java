@@ -10,4 +10,5 @@ import java.util.Optional;
 public interface FormuleRepository extends JpaRepository<Formule, Long> {
     boolean existsByCodeVariable(String codeVariable);
     Optional<Formule> findByCodeVariable(String codeVariable);
+    Optional<Formule> findByCodeVariableIgnoreCase(String codeVariable);
 }

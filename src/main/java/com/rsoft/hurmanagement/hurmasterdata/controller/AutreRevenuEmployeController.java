@@ -3,6 +3,8 @@ package com.rsoft.hurmanagement.hurmasterdata.controller;
 import com.rsoft.hurmanagement.hurmasterdata.dto.AutreRevenuEmployeCreateDTO;
 import com.rsoft.hurmanagement.hurmasterdata.dto.AutreRevenuEmployeDTO;
 import com.rsoft.hurmanagement.hurmasterdata.dto.AutreRevenuEmployeUpdateDTO;
+import com.rsoft.hurmanagement.hurmasterdata.dto.AutreRevenuValidationRangeRequestDTO;
+import com.rsoft.hurmanagement.hurmasterdata.dto.AutreRevenuValidationRangeResultDTO;
 import com.rsoft.hurmanagement.hurmasterdata.service.AutreRevenuEmployeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -94,5 +96,19 @@ public class AutreRevenuEmployeController {
             @PathVariable Long id,
             @RequestHeader(value = "X-Username", defaultValue = "system") String username) {
         return ResponseEntity.ok(service.annuler(id, username));
+    }
+
+    @PostMapping("/valider-par-plage")
+    public ResponseEntity<AutreRevenuValidationRangeResultDTO> validerParPlage(
+            @Valid @RequestBody AutreRevenuValidationRangeRequestDTO request,
+            @RequestHeader(value = "X-Username", defaultValue = "system") String username) {
+        return ResponseEntity.ok(service.validerParPlage(request, username));
+    }
+
+    @PostMapping("/devalider-par-plage")
+    public ResponseEntity<AutreRevenuValidationRangeResultDTO> devaliderParPlage(
+            @Valid @RequestBody AutreRevenuValidationRangeRequestDTO request,
+            @RequestHeader(value = "X-Username", defaultValue = "system") String username) {
+        return ResponseEntity.ok(service.devaliderParPlage(request, username));
     }
 }

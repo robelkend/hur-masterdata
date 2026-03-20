@@ -3,6 +3,8 @@ package com.rsoft.hurmanagement.hurmasterdata.service;
 import com.rsoft.hurmanagement.hurmasterdata.dto.AutreRevenuEmployeCreateDTO;
 import com.rsoft.hurmanagement.hurmasterdata.dto.AutreRevenuEmployeDTO;
 import com.rsoft.hurmanagement.hurmasterdata.dto.AutreRevenuEmployeUpdateDTO;
+import com.rsoft.hurmanagement.hurmasterdata.dto.AutreRevenuValidationRangeRequestDTO;
+import com.rsoft.hurmanagement.hurmasterdata.dto.AutreRevenuValidationRangeResultDTO;
 import com.rsoft.hurmanagement.hurmasterdata.entity.*;
 import com.rsoft.hurmanagement.hurmasterdata.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -223,6 +225,43 @@ public class AutreRevenuEmployeService {
         entity.setRowscn(entity.getRowscn() + 1);
 
         return toDTO(repository.save(entity));
+    }
+
+    @Transactional
+    public AutreRevenuValidationRangeResultDTO validerParPlage(AutreRevenuValidationRangeRequestDTO request, String username) {
+        validateDateRange(request.getDateDebut(), request.getDateFin());
+        int updated = repository.validateDraftsInRange(
+                request.getDateDebut(),
+                request.getDateFin(),
+                request.getEntrepriseId(),
+                request.getEmployeId(),
+                request.getTypeRevenuId(),
+                username,
+                OffsetDateTime.now());
+        return new AutreRevenuValidationRangeResultDTO(updated);
+    }
+
+    @Transactional
+    public AutreRevenuValidationRangeResultDTO devaliderParPlage(AutreRevenuValidationRangeRequestDTO request, String username) {
+        validateDateRange(request.getDateDebut(), request.getDateFin());
+        int updated = repository.devalidateValidatedInRange(
+                request.getDateDebut(),
+                request.getDateFin(),
+                request.getEntrepriseId(),
+                request.getEmployeId(),
+                request.getTypeRevenuId(),
+                username,
+                OffsetDateTime.now());
+        return new AutreRevenuValidationRangeResultDTO(updated);
+    }
+
+    private void validateDateRange(LocalDate dateDebut, LocalDate dateFin) {
+        if (dateDebut == null || dateFin == null) {
+            throw new RuntimeException("dateDebut and dateFin are required");
+        }
+        if (dateFin.isBefore(dateDebut)) {
+            throw new RuntimeException("dateFin must be after or equal to dateDebut");
+        }
     }
 
     private AutreRevenuEmployeDTO toDTO(AutreRevenuEmploye entity) {

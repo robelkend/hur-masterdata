@@ -246,6 +246,83 @@ public class MutationEmployeService {
         
         return toDTO(repository.save(mutation));
     }
+
+    @Transactional
+    public Map<String, Object> autoApplyApprovedForCurrentDate(Long entrepriseId, String username) {
+        LocalDate today = LocalDate.now();
+        List<MutationEmploye> mutations = repository.findByStatutAndDateEffetLessThanEqual(
+                MutationEmploye.StatutMutation.APPROUVE,
+                today
+        );
+        int totalRows = 0;
+        int appliedRows = 0;
+        for (MutationEmploye mutation : mutations) {
+            if (entrepriseId != null) {
+                Long mutationEntrepriseId = mutation.getEntreprise() != null ? mutation.getEntreprise().getId() : null;
+                if (!entrepriseId.equals(mutationEntrepriseId)) {
+                    continue;
+                }
+            }
+            totalRows++;
+            appliquer(mutation.getId(), username);
+            appliedRows++;
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("totalRows", totalRows);
+        result.put("appliedRows", appliedRows);
+        result.put("message", "Applied " + appliedRows + " mutations");
+        return result;
+    }
+
+    @Transactional
+    public Map<String, Object> autoCreateAndApplyReintegrationForExpiredSuspensions(Long entrepriseId, String username) {
+        LocalDate today = LocalDate.now();
+        List<EmploiEmploye> emplois = emploiEmployeRepository.findByStatutEmploiAndDateFinStatutLessThanEqual(
+                EmploiEmploye.StatutEmploi.SUSPENDU,
+                today
+        );
+        int totalRows = 0;
+        int createdRows = 0;
+        int appliedRows = 0;
+        for (EmploiEmploye emploi : emplois) {
+            if (emploi == null || emploi.getEmploye() == null || emploi.getEmploye().getId() == null) {
+                continue;
+            }
+            if (entrepriseId != null) {
+                Long emploiEntrepriseId = emploi.getEmploye().getEntreprise() != null
+                        ? emploi.getEmploye().getEntreprise().getId()
+                        : null;
+                if (!entrepriseId.equals(emploiEntrepriseId)) {
+                    continue;
+                }
+            }
+            totalRows++;
+            MutationEmployeCreateDTO dto = new MutationEmployeCreateDTO();
+            dto.setEmployeId(emploi.getEmploye().getId());
+            dto.setEntrepriseId(emploi.getEmploye().getEntreprise() != null ? emploi.getEmploye().getEntreprise().getId() : null);
+            dto.setTypeMutation(MutationEmploye.TypeMutation.REINTEGRATION.name());
+            dto.setDateEffet(emploi.getDateFinStatut() != null ? emploi.getDateFinStatut() : today);
+            dto.setDateSaisie(today);
+            dto.setStatut(MutationEmploye.StatutMutation.BROUILLON.name());
+            dto.setMotif("Reintegration automatique");
+            dto.setReference("AUTO-REINTEGRATION-" + emploi.getId() + "-" + today);
+            dto.setEmploiEmployeAvantId(emploi.getId());
+            dto.setEmploiEmployeApresId(emploi.getId());
+
+            MutationEmployeDTO created = create(dto, username);
+            createdRows++;
+            appliquer(created.getId(), username);
+            appliedRows++;
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("success", true);
+        result.put("totalRows", totalRows);
+        result.put("createdRows", createdRows);
+        result.put("appliedRows", appliedRows);
+        result.put("message", "Created and applied " + appliedRows + " reintegrations");
+        return result;
+    }
     
     @Transactional(readOnly = true)
     public List<EmploiEmployeDTO> getEmploisDisponibles(Long employeId, String typeMutation) {

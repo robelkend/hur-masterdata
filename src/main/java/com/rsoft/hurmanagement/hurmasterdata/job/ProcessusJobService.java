@@ -6,10 +6,12 @@ import com.rsoft.hurmanagement.hurmasterdata.repository.InterfaceLoadingReposito
 import com.rsoft.hurmanagement.hurmasterdata.service.InterfaceLoadingService;
 import com.rsoft.hurmanagement.hurmasterdata.service.PresenceBuilderService;
 import com.rsoft.hurmanagement.hurmasterdata.service.PresenceRearrangeService;
+import com.rsoft.hurmanagement.hurmasterdata.service.CongeEmployeService;
 import com.rsoft.hurmanagement.hurmasterdata.service.CongeEmployeFinalizeService;
 import com.rsoft.hurmanagement.hurmasterdata.service.SupplementaireEmployeService;
 import com.rsoft.hurmanagement.hurmasterdata.service.HoraireSpecialService;
 import com.rsoft.hurmanagement.hurmasterdata.service.PrimePresenceService;
+import com.rsoft.hurmanagement.hurmasterdata.service.MutationEmployeService;
 import com.rsoft.hurmanagement.hurmasterdata.dto.SupplementaireGenerationRequestDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,19 +30,24 @@ public class ProcessusJobService {
     private static final String PROCESSUS_ATTENDANCES = "PROCESS_ATTENDANCES";
     private static final String PROCESSUS_REARRANGE_ATTENDANCE = "REARRANGE_ATTENDANCE";
     private static final String PROCESSUS_FINALIZE_LEAVE = "FINALIZE_LEAVE";
+    private static final String PROCESSUS_PROCESS_LEAVE = "process_leave";
     private static final String PROCESSUS_OVERTIMES = "process_overtimes";
     private static final String PROCESSUS_OVERTIME = "process_overtime";
     private static final String PROCESSUS_CREATE_SCHEDULES = "create_schedules";
     private static final String PROCESSUS_PRIME_PRESENCE = "PRIME_PRESENCE";
+    private static final String PROCESSUS_FINALIZE_MUTATION = "finalize_mutation";
+    private static final String PROCESSUS_EMPLOYEE_RETURN = "employee_return";
 
     private final InterfaceLoadingRepository interfaceLoadingRepository;
     private final InterfaceLoadingService interfaceLoadingService;
     private final PresenceBuilderService presenceBuilderService;
     private final PresenceRearrangeService presenceRearrangeService;
+    private final CongeEmployeService congeEmployeService;
     private final CongeEmployeFinalizeService congeEmployeFinalizeService;
     private final SupplementaireEmployeService supplementaireEmployeService;
     private final HoraireSpecialService horaireSpecialService;
     private final PrimePresenceService primePresenceService;
+    private final MutationEmployeService mutationEmployeService;
 
     public void runProcessus(ProcessusParametre job, String username) {
         String code = job.getCodeProcessus() != null ? job.getCodeProcessus().trim() : "";
@@ -56,8 +63,8 @@ public class ProcessusJobService {
             runAttendancesRearrange(job, username);
             return;
         }
-        if (PROCESSUS_FINALIZE_LEAVE.equalsIgnoreCase(code)) {
-            runFinalizeLeave(job, username);
+        if (PROCESSUS_FINALIZE_LEAVE.equalsIgnoreCase(code) || PROCESSUS_PROCESS_LEAVE.equalsIgnoreCase(code)) {
+            runProcessLeave(job, username);
             return;
         }
         if (PROCESSUS_OVERTIMES.equalsIgnoreCase(code) || PROCESSUS_OVERTIME.equalsIgnoreCase(code)) {
@@ -70,6 +77,14 @@ public class ProcessusJobService {
         }
         if (PROCESSUS_PRIME_PRESENCE.equalsIgnoreCase(code)) {
             runPrimePresence(job, username);
+            return;
+        }
+        if (PROCESSUS_FINALIZE_MUTATION.equalsIgnoreCase(code)) {
+            runFinalizeMutation(job, username);
+            return;
+        }
+        if (PROCESSUS_EMPLOYEE_RETURN.equalsIgnoreCase(code)) {
+            runEmployeeReturn(job, username);
             return;
         }
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown process code: " + job.getCodeProcessus());
@@ -124,12 +139,16 @@ public class ProcessusJobService {
         }
     }
 
-    private void runFinalizeLeave(ProcessusParametre job, String username) {
+    private void runProcessLeave(ProcessusParametre job, String username) {
         LocalDate targetDate = resolveTargetDate(job);
         Long entrepriseId = job.getEntreprise() != null ? job.getEntreprise().getId() : null;
-        Map<String, Object> result = congeEmployeFinalizeService.autoFinalizeForDate(targetDate, entrepriseId, username);
-        if (result != null && Boolean.FALSE.equals(result.get("success"))) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.valueOf(result.get("message")));
+        Map<String, Object> startResult = congeEmployeService.autoStartApprovedForDate(targetDate, entrepriseId, username);
+        if (startResult != null && Boolean.FALSE.equals(startResult.get("success"))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.valueOf(startResult.get("message")));
+        }
+        Map<String, Object> finalizeResult = congeEmployeFinalizeService.autoFinalizeForDate(targetDate, entrepriseId, username);
+        if (finalizeResult != null && Boolean.FALSE.equals(finalizeResult.get("success"))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.valueOf(finalizeResult.get("message")));
         }
     }
 
@@ -170,6 +189,25 @@ public class ProcessusJobService {
         }
     }
 
+    private void runFinalizeMutation(ProcessusParametre job, String username) {
+        Long entrepriseId = job.getEntreprise() != null ? job.getEntreprise().getId() : null;
+        Map<String, Object> result = mutationEmployeService.autoApplyApprovedForCurrentDate(entrepriseId, username);
+        if (result != null && Boolean.FALSE.equals(result.get("success"))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.valueOf(result.get("message")));
+        }
+    }
+
+    private void runEmployeeReturn(ProcessusParametre job, String username) {
+        Long entrepriseId = job.getEntreprise() != null ? job.getEntreprise().getId() : null;
+        Map<String, Object> result = mutationEmployeService.autoCreateAndApplyReintegrationForExpiredSuspensions(
+                entrepriseId,
+                username
+        );
+        if (result != null && Boolean.FALSE.equals(result.get("success"))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.valueOf(result.get("message")));
+        }
+    }
+
     private Map<String, String> buildDateParams(ProcessusParametre job) {
         LocalDate targetDate = resolveTargetDate(job);
         String date = targetDate.toString();
@@ -185,38 +223,12 @@ public class ProcessusJobService {
     }
 
     private LocalDate resolveTargetDate(ProcessusParametre job) {
-        OffsetDateTime now = OffsetDateTime.now();
-        int marge = job.getMarge() != null ? job.getMarge() : 0;
-        ProcessusParametre.UniteMarge unite = job.getUniteMarge() != null ? job.getUniteMarge() : ProcessusParametre.UniteMarge.JOUR;
-        OffsetDateTime target = switch (unite) {
-            case MINUTE -> now.minusMinutes(marge);
-            case HEURE -> now.minusHours(marge);
-            case JOUR -> now.minusDays(marge);
-        };
-        return target.toLocalDate();
+        return ProcessusDateRangeSupport.resolveTargetDate(job, OffsetDateTime.now());
     }
 
     private DateRange buildDateRange(ProcessusParametre job) {
-        OffsetDateTime lastExecution = job.getDerniereExecutionAt() != null ? job.getDerniereExecutionAt() : OffsetDateTime.now();
-        OffsetDateTime nextExecution = job.getProchaineExecutionAt() != null ? job.getProchaineExecutionAt() : OffsetDateTime.now();
-        OffsetDateTime adjustedLast = applyMarge(lastExecution, job);
-        OffsetDateTime adjustedNext = applyMarge(nextExecution, job);
-        LocalDate debut = adjustedLast.toLocalDate().plusDays(1);
-        LocalDate fin = adjustedNext.toLocalDate();
-        if (fin.isBefore(debut)) {
-            fin = debut;
-        }
-        return new DateRange(debut, fin);
-    }
-
-    private OffsetDateTime applyMarge(OffsetDateTime dateTime, ProcessusParametre job) {
-        int marge = job.getMarge() != null ? job.getMarge() : 0;
-        ProcessusParametre.UniteMarge unite = job.getUniteMarge() != null ? job.getUniteMarge() : ProcessusParametre.UniteMarge.JOUR;
-        return switch (unite) {
-            case MINUTE -> dateTime.minusMinutes(marge);
-            case HEURE -> dateTime.minusHours(marge);
-            case JOUR -> dateTime.minusDays(marge);
-        };
+        ProcessusDateRangeSupport.DateRange range = ProcessusDateRangeSupport.buildDateRange(job, OffsetDateTime.now());
+        return new DateRange(range.getDateDebut(), range.getDateFin());
     }
 
     private static class DateRange {

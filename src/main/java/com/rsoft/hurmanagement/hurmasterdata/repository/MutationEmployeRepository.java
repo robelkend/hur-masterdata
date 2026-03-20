@@ -32,4 +32,9 @@ public interface MutationEmployeRepository extends JpaRepository<MutationEmploye
     List<MutationEmploye> findByEmployeId(Long employeId);
     
     List<MutationEmploye> findByEmployeIdAndStatut(Long employeId, MutationEmploye.StatutMutation statut);
+
+    List<MutationEmploye> findByStatutAndDateEffetLessThanEqual(
+            MutationEmploye.StatutMutation statut,
+            LocalDate dateEffet
+    );
 }

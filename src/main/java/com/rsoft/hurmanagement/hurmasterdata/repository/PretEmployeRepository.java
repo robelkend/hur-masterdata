@@ -35,6 +35,8 @@ public interface PretEmployeRepository extends JpaRepository<PretEmploye, Long> 
     
     List<PretEmploye> findByEmployeIdAndStatut(Long employeId, PretEmploye.StatutPret statut);
 
+    List<PretEmploye> findByEmployeIdAndStatutIn(Long employeId, List<PretEmploye.StatutPret> statuts);
+
     @Query("SELECT p FROM PretEmploye p WHERE " +
            "p.employe.id = :employeId AND " +
            "p.preleverDansPayroll = 'Y' AND " +

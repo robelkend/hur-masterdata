@@ -15,7 +15,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -27,6 +26,8 @@ public class CongeEmployeService {
     private final EntrepriseRepository entrepriseRepository;
     private final TypeCongeRepository typeCongeRepository;
     private final EmploiEmployeRepository emploiEmployeRepository;
+    private final PresenceEmployeRepository presenceEmployeRepository;
+    private final JourCongeRepository jourCongeRepository;
 
     @Transactional(readOnly = true)
     public Page<CongeEmployeDTO> findAllWithFilters(
@@ -70,8 +71,9 @@ public class CongeEmployeService {
             entity.setEntreprise(entreprise);
         }
 
+        EmploiEmploye emploi = resolveEmploiEmploye(dto.getEmployeId(), dto.getEmploiEmployeId());
         entity.setEmploye(employe);
-        entity.setEmploiEmploye(resolveEmploiEmploye(dto.getEmployeId(), dto.getEmploiEmployeId()));
+        entity.setEmploiEmploye(emploi);
         entity.setTypeConge(typeConge);
         entity.setDateDebutPlan(dto.getDateDebutPlan());
         entity.setDateFinPlan(dto.getDateFinPlan());
@@ -82,14 +84,14 @@ public class CongeEmployeService {
         entity.setStatut(CongeEmploye.StatutConge.valueOf(dto.getStatut()));
 
         // Calculate nb_jours_plan
-        entity.setNbJoursPlan(calculateNbJours(dto.getDateDebutPlan(), dto.getDateFinPlan()));
+        entity.setNbJoursPlan(calculateNbJoursExcludingOffAndHolidays(emploi, dto.getDateDebutPlan(), dto.getDateFinPlan()));
 
         // Calculate nb_jours_reel if dates are provided
         if (dto.getDateDebutReel() != null && dto.getDateFinReel() != null) {
             if (dto.getDateFinReel().isBefore(dto.getDateDebutReel())) {
                 throw new RuntimeException("Date fin reel must be >= date debut reel");
             }
-            entity.setNbJoursReel(calculateNbJours(dto.getDateDebutReel(), dto.getDateFinReel()));
+            entity.setNbJoursReel(calculateNbJoursExcludingOffAndHolidays(emploi, dto.getDateDebutReel(), dto.getDateFinReel()));
         } else {
             entity.setNbJoursReel(BigDecimal.ZERO);
         }
@@ -132,7 +134,8 @@ public class CongeEmployeService {
         Employe employe = employeRepository.findById(dto.getEmployeId())
                 .orElseThrow(() -> new RuntimeException("Employe not found with id: " + dto.getEmployeId()));
         entity.setEmploye(employe);
-        entity.setEmploiEmploye(resolveEmploiEmploye(dto.getEmployeId(), dto.getEmploiEmployeId()));
+        EmploiEmploye emploi = resolveEmploiEmploye(dto.getEmployeId(), dto.getEmploiEmployeId());
+        entity.setEmploiEmploye(emploi);
 
         TypeConge typeConge = typeCongeRepository.findById(dto.getTypeCongeId())
                 .orElseThrow(() -> new RuntimeException("TypeConge not found with id: " + dto.getTypeCongeId()));
@@ -147,14 +150,14 @@ public class CongeEmployeService {
         entity.setStatut(CongeEmploye.StatutConge.valueOf(dto.getStatut()));
 
         // Recalculate nb_jours_plan
-        entity.setNbJoursPlan(calculateNbJours(dto.getDateDebutPlan(), dto.getDateFinPlan()));
+        entity.setNbJoursPlan(calculateNbJoursExcludingOffAndHolidays(emploi, dto.getDateDebutPlan(), dto.getDateFinPlan()));
 
         // Recalculate nb_jours_reel if dates are provided
         if (dto.getDateDebutReel() != null && dto.getDateFinReel() != null) {
             if (dto.getDateFinReel().isBefore(dto.getDateDebutReel())) {
                 throw new RuntimeException("Date fin reel must be >= date debut reel");
             }
-            entity.setNbJoursReel(calculateNbJours(dto.getDateDebutReel(), dto.getDateFinReel()));
+            entity.setNbJoursReel(calculateNbJoursExcludingOffAndHolidays(emploi, dto.getDateDebutReel(), dto.getDateFinReel()));
         } else {
             entity.setNbJoursReel(BigDecimal.ZERO);
         }
@@ -241,8 +244,9 @@ public class CongeEmployeService {
         CongeEmploye entity = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("CongeEmploye not found with id: " + id));
 
-        if (entity.getStatut() != CongeEmploye.StatutConge.APPROUVE) {
-            throw new RuntimeException("Cannot start conge with status: " + entity.getStatut() + ". Only APPROUVE records can be started.");
+        if (entity.getStatut() != CongeEmploye.StatutConge.APPROUVE
+                && entity.getStatut() != CongeEmploye.StatutConge.BROUILLON) {
+            throw new RuntimeException("Cannot start conge with status: " + entity.getStatut() + ". Only BROUILLON or APPROUVE records can be started.");
         }
 
         entity.setStatut(CongeEmploye.StatutConge.EN_COURS);
@@ -258,8 +262,9 @@ public class CongeEmployeService {
         CongeEmploye entity = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("CongeEmploye not found with id: " + id));
 
-        if (entity.getStatut() != CongeEmploye.StatutConge.APPROUVE) {
-            throw new RuntimeException("Cannot cancel conge with status: " + entity.getStatut() + ". Only APPROUVE records can be cancelled.");
+        if (entity.getStatut() != CongeEmploye.StatutConge.APPROUVE
+                && entity.getStatut() != CongeEmploye.StatutConge.BROUILLON) {
+            throw new RuntimeException("Cannot cancel conge with status: " + entity.getStatut() + ". Only BROUILLON or APPROUVE records can be cancelled.");
         }
 
         entity.setStatut(CongeEmploye.StatutConge.ANNULE);
@@ -270,12 +275,78 @@ public class CongeEmployeService {
         return toDTO(repository.save(entity));
     }
 
-    private BigDecimal calculateNbJours(LocalDate dateDebut, LocalDate dateFin) {
+    @Transactional
+    public java.util.Map<String, Object> autoStartApprovedForDate(LocalDate targetDate, Long entrepriseId, String username) {
+        List<CongeEmploye> conges = repository.findByStatut(CongeEmploye.StatutConge.APPROUVE);
+        int totalRows = 0;
+        int startedRows = 0;
+        int skippedWithPresence = 0;
+        for (CongeEmploye conge : conges) {
+            if (entrepriseId != null) {
+                Long congeEntrepriseId = conge.getEntreprise() != null ? conge.getEntreprise().getId() : null;
+                if (!entrepriseId.equals(congeEntrepriseId)) {
+                    continue;
+                }
+            }
+            totalRows++;
+            Long employeId = conge.getEmploye() != null ? conge.getEmploye().getId() : null;
+            LocalDate dateDebutPlan = conge.getDateDebutPlan();
+            if (employeId == null || dateDebutPlan == null) {
+                continue;
+            }
+            boolean hasPresence = presenceEmployeRepository.existsByEmployeIdAndDateJourGreaterThanEqualAndStatutPresence(
+                    employeId,
+                    dateDebutPlan,
+                    PresenceEmploye.StatutPresence.VALIDE
+            );
+            if (hasPresence) {
+                skippedWithPresence++;
+                continue;
+            }
+            demarrer(conge.getId(), username);
+            startedRows++;
+        }
+        java.util.Map<String, Object> result = new java.util.HashMap<>();
+        result.put("success", true);
+        result.put("totalRows", totalRows);
+        result.put("startedRows", startedRows);
+        result.put("skippedWithPresence", skippedWithPresence);
+        result.put("message", "Started " + startedRows + " leaves");
+        return result;
+    }
+
+    private BigDecimal calculateNbJoursExcludingOffAndHolidays(EmploiEmploye emploi, LocalDate dateDebut, LocalDate dateFin) {
         if (dateDebut == null || dateFin == null) {
             return BigDecimal.ZERO;
         }
-        long days = ChronoUnit.DAYS.between(dateDebut, dateFin) + 1; // +1 to include both start and end dates
-        return BigDecimal.valueOf(days).setScale(2, RoundingMode.HALF_UP);
+        LocalDate start = dateDebut;
+        LocalDate end = dateFin;
+        if (end.isBefore(start)) {
+            LocalDate tmp = start;
+            start = end;
+            end = tmp;
+        }
+        long count = 0;
+        for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
+            if (isOffDay(emploi, date)) {
+                continue;
+            }
+            if (jourCongeRepository.existsByDateCongeAndActif(date, JourConge.Actif.Y)) {
+                continue;
+            }
+            count++;
+        }
+        return BigDecimal.valueOf(count).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private boolean isOffDay(EmploiEmploye emploi, LocalDate date) {
+        if (emploi == null || date == null) {
+            return false;
+        }
+        int day = date.getDayOfWeek().getValue();
+        return java.util.Objects.equals(emploi.getJourOff1(), day)
+                || java.util.Objects.equals(emploi.getJourOff2(), day)
+                || java.util.Objects.equals(emploi.getJourOff3(), day);
     }
 
     private CongeEmployeDTO toDTO(CongeEmploye entity) {

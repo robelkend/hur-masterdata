@@ -181,7 +181,10 @@ public class PresenceRearrangeService {
         if (arrivee == null || depart == null) {
             return false;
         }
-        presence.setDateDepart(presence.getDateJour().plusDays(1));
+        LocalDate correctedDateDepart = plan.specialDateFin != null
+                ? plan.specialDateFin
+                : presence.getDateJour().plusDays(1);
+        presence.setDateDepart(correctedDateDepart);
         presence.setHeureArrivee(depart);
         presence.setHeureDepart(arrivee);
         return true;
@@ -206,6 +209,7 @@ public class PresenceRearrangeService {
             plan.nightPlan = plan.hasNightPlan;
             plan.plannedStart = special.getHeureDebut();
             plan.plannedEnd = special.getHeureFin();
+            plan.specialDateFin = special.getDateFin();
         } else if (horaire != null) {
             HoraireDt horaireDt = horaireDtRepository.findByHoraireIdAndJour(horaire.getId(), dayIndex(date));
             if (horaireDt != null) {
@@ -313,6 +317,7 @@ public class PresenceRearrangeService {
         boolean hasDayPlan;
         boolean hasNightPlan;
         boolean nightPlan;
+        LocalDate specialDateFin;
         String plannedStart;
         String plannedEnd;
         String autoClose;

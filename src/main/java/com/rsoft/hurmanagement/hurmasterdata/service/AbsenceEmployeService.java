@@ -182,7 +182,7 @@ public class AbsenceEmployeService {
                 if (jourCongeRepository.existsByDateCongeAndActif(date, JourConge.Actif.Y)) {
                     continue;
                 }
-                if (congeEmployeRepository.existsActiveCongeForDate(employe.getId(), date)) {
+                if (congeEmployeRepository.existsCongeForDate(employe.getId(), date)) {
                     continue;
                 }
 

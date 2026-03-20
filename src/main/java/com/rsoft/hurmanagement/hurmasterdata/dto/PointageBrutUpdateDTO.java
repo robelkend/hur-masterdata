@@ -20,7 +20,6 @@ public class PointageBrutUpdateDTO {
     private String motifRejet;
     private String statutTraitement;
     private Long presenceEmployeId;
-    private Long noPresence;
     private OffsetDateTime traiteLe;
     private String traitePar;
     private String importePar;

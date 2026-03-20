@@ -50,12 +50,21 @@ public class Entreprise {
     
     @Column(name = "adresse", columnDefinition = "TEXT")
     private String adresse;
+
+    @Column(name = "code_postal", length = 20)
+    private String codePostal;
+
+    @Column(name = "pays", length = 2)
+    private String pays;
     
     @Column(name = "telephone1", length = 50)
     private String telephone1;
     
     @Column(name = "telephone2", length = 50)
     private String telephone2;
+
+    @Column(name = "telephone3", length = 50)
+    private String telephone3;
     
     @Column(name = "fax", length = 50)
     private String fax;

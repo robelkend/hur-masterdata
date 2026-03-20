@@ -54,6 +54,8 @@ public class PayrollService {
     private final PretEmployeRepository pretEmployeRepository;
     private final PretRemboursementRepository pretRemboursementRepository;
     private final ProductionPieceRepository productionPieceRepository;
+    private final PayrollEmployeAgregatService payrollEmployeAgregatService;
+    private final PayrollEmployeAgregatDeductionService payrollEmployeAgregatDeductionService;
     private final JdbcTemplate jdbcTemplate;
 
     private final FormulaExpressionEvaluator formulaEvaluator = new FormulaExpressionEvaluator();
@@ -89,6 +91,7 @@ public class PayrollService {
         payroll.setLibelle(dto.getLibelle());
         payroll.setDateDebut(resolveDateDebut(regimePaie));
         payroll.setDateFin(resolveDateFin(regimePaie, payroll.getDateDebut()));
+        payroll.setPeriodePaie(resolvePeriodePaieCourante(regimePaie));
         payroll.setStatut(Payroll.StatutPayroll.BROUILLON);
         payroll.setCreatedBy(username);
         payroll.setCreatedOn(OffsetDateTime.now());
@@ -114,6 +117,9 @@ public class PayrollService {
         payroll.setLibelle(dto.getLibelle());
         payroll.setDateDebut(resolveDateDebut(regimePaie));
         payroll.setDateFin(resolveDateFin(regimePaie, payroll.getDateDebut()));
+        if (payroll.getPeriodePaie() == null || payroll.getPeriodePaie() <= 0) {
+            payroll.setPeriodePaie(resolvePeriodePaieCourante(regimePaie));
+        }
         payroll.setUpdatedBy(username);
         payroll.setUpdatedOn(OffsetDateTime.now());
         return toDTO(payrollRepository.save(payroll));
@@ -306,6 +312,10 @@ public class PayrollService {
             }
         }
 
+        List<PayrollEmploye> payrollEmployes = payrollEmployeRepository.findByPayrollId(payroll.getId());
+        payrollEmployeAgregatService.aggregateForValidatedPayroll(payroll, payrollEmployes, username);
+        payrollEmployeAgregatDeductionService.aggregateForValidatedPayroll(payroll, payrollEmployes, username);
+
         RegimePaie regimePaie = payroll.getRegimePaie() != null && payroll.getRegimePaie().getId() != null
                 ? regimePaieRepository.findById(payroll.getRegimePaie().getId()).orElse(null)
                 : null;
@@ -313,6 +323,7 @@ public class PayrollService {
             LocalDate dateFin = payroll.getDateFin();
             regimePaie.setDernierePaie(dateFin);
             regimePaie.setProchainePaie(computeNextPayrollDate(dateFin, regimePaie.getPeriodicite(), 1));
+            regimePaie.setPeriodePaieCourante(resolvePeriodePaieSuivante(regimePaie));
             boolean taxesApplied = shouldApplyTaxes(regimePaie, payroll);
             if (taxesApplied) {
                 regimePaie.setDernierPrelevement(dateFin);
@@ -1723,6 +1734,11 @@ public class PayrollService {
         dto.setLibelle(payroll.getLibelle());
         dto.setDateDebut(payroll.getDateDebut());
         dto.setDateFin(payroll.getDateFin());
+        Integer periode = payroll.getPeriodePaie();
+        if (periode == null || periode <= 0) {
+            periode = resolvePeriodePaieCourante(payroll.getRegimePaie());
+        }
+        dto.setPeriodePaie(periode);
         dto.setStatut(payroll.getStatut().name());
         dto.setCreatedBy(payroll.getCreatedBy());
         dto.setCreatedOn(payroll.getCreatedOn());
@@ -1902,5 +1918,25 @@ public class PayrollService {
             return regimePaie.getProchainePaie();
         }
         return defaultDate;
+    }
+
+    private int resolvePeriodePaieCourante(RegimePaie regimePaie) {
+        if (regimePaie == null || regimePaie.getPeriodePaieCourante() == null || regimePaie.getPeriodePaieCourante() <= 0) {
+            return 1;
+        }
+        return regimePaie.getPeriodePaieCourante();
+    }
+
+    private int resolvePeriodePaieSuivante(RegimePaie regimePaie) {
+        if (regimePaie == null) {
+            return 1;
+        }
+        int courant = regimePaie.getPeriodePaieCourante() != null && regimePaie.getPeriodePaieCourante() > 0
+                ? regimePaie.getPeriodePaieCourante()
+                : 1;
+        int max = regimePaie.getNbPeriodePaie() != null && regimePaie.getNbPeriodePaie() > 0
+                ? regimePaie.getNbPeriodePaie()
+                : 1;
+        return courant >= max ? 1 : courant + 1;
     }
 }

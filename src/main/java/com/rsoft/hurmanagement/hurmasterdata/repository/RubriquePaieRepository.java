@@ -18,4 +18,7 @@ public interface RubriquePaieRepository extends JpaRepository<RubriquePaie, Long
     
     @Query("SELECT r FROM RubriquePaie r WHERE r.imposable = 'Y' ORDER BY r.codeRubrique")
     List<RubriquePaie> findAllImposable();
+
+    @Query("SELECT r FROM RubriquePaie r WHERE r.boni = 'Y' ORDER BY r.codeRubrique")
+    List<RubriquePaie> findAllBoni();
 }

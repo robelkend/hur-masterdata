@@ -38,12 +38,24 @@ public interface CongeEmployeRepository extends JpaRepository<CongeEmploye, Long
 
     @Query("SELECT COUNT(c) > 0 FROM CongeEmploye c WHERE " +
            "c.employe.id = :employeId AND " +
-           ":dateJour BETWEEN c.dateDebutPlan AND c.dateFinPlan AND " +
-           "c.statut NOT IN (com.rsoft.hurmanagement.hurmasterdata.entity.CongeEmploye.StatutConge.ANNULE, " +
-           "com.rsoft.hurmanagement.hurmasterdata.entity.CongeEmploye.StatutConge.REJETE)")
-    boolean existsActiveCongeForDate(
+           "c.statut IN (com.rsoft.hurmanagement.hurmasterdata.entity.CongeEmploye.StatutConge.EN_COURS, " +
+           "com.rsoft.hurmanagement.hurmasterdata.entity.CongeEmploye.StatutConge.TERMINE) AND " +
+           "((" +
+           "  c.dateDebutReel IS NOT NULL AND c.dateFinReel IS NOT NULL AND " +
+           "  :dateJour BETWEEN c.dateDebutReel AND c.dateFinReel" +
+           ") OR (" +
+           "  (c.dateDebutReel IS NULL OR c.dateFinReel IS NULL) AND " +
+           "  :dateJour BETWEEN c.dateDebutPlan AND c.dateFinPlan" +
+           "))")
+    boolean existsCongeForDate(
             @Param("employeId") Long employeId,
             @Param("dateJour") LocalDate dateJour);
 
     List<CongeEmploye> findByStatutAndDateFinPlanBefore(CongeEmploye.StatutConge statut, LocalDate dateFinPlan);
+
+    List<CongeEmploye> findByStatut(CongeEmploye.StatutConge statut);
+
+    List<CongeEmploye> findByStatutAndDateDebutPlanLessThanEqual(
+            CongeEmploye.StatutConge statut,
+            LocalDate dateDebutPlan);
 }

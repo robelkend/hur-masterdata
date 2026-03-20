@@ -59,6 +59,8 @@ public class RegimePaieService {
         entity.setDescription(dto.getDescription());
         entity.setModeRemuneration(dto.getModeRemuneration());
         entity.setPeriodicite(dto.getPeriodicite());
+        entity.setNbPeriodePaie(dto.getNbPeriodePaie() != null ? dto.getNbPeriodePaie() : resolveNbPeriodePaie(dto.getPeriodicite()));
+        entity.setPeriodePaieCourante(dto.getPeriodePaieCourante() != null ? dto.getPeriodePaieCourante() : 1);
         entity.setDevise(devise);
         entity.setHoraireActif(dto.getHoraireActif() != null ? dto.getHoraireActif() : "Y");
         entity.setJoursPayes(dto.getJoursPayes());
@@ -112,6 +114,8 @@ public class RegimePaieService {
         entity.setDescription(dto.getDescription());
         entity.setModeRemuneration(dto.getModeRemuneration());
         entity.setPeriodicite(dto.getPeriodicite());
+        entity.setNbPeriodePaie(dto.getNbPeriodePaie() != null ? dto.getNbPeriodePaie() : resolveNbPeriodePaie(dto.getPeriodicite()));
+        entity.setPeriodePaieCourante(dto.getPeriodePaieCourante() != null ? dto.getPeriodePaieCourante() : 1);
         entity.setDevise(devise);
         entity.setHoraireActif(dto.getHoraireActif() != null ? dto.getHoraireActif() : "Y");
         entity.setJoursPayes(dto.getJoursPayes());
@@ -177,6 +181,8 @@ public class RegimePaieService {
         clone.setDescription(source.getDescription());
         clone.setModeRemuneration(source.getModeRemuneration());
         clone.setPeriodicite(source.getPeriodicite());
+        clone.setNbPeriodePaie(source.getNbPeriodePaie());
+        clone.setPeriodePaieCourante(source.getPeriodePaieCourante());
         clone.setDevise(source.getDevise());
         clone.setHoraireActif(source.getHoraireActif());
         clone.setJoursPayes(source.getJoursPayes());
@@ -227,6 +233,8 @@ public class RegimePaieService {
         dto.setDescription(entity.getDescription());
         dto.setModeRemuneration(entity.getModeRemuneration());
         dto.setPeriodicite(entity.getPeriodicite());
+        dto.setNbPeriodePaie(entity.getNbPeriodePaie());
+        dto.setPeriodePaieCourante(entity.getPeriodePaieCourante());
         
         if (entity.getDevise() != null) {
             dto.setDeviseId(entity.getDevise().getId());
@@ -270,5 +278,19 @@ public class RegimePaieService {
         dto.setRowscn(entity.getRowscn());
         
         return dto;
+    }
+
+    private int resolveNbPeriodePaie(RegimePaie.Periodicite periodicite) {
+        RegimePaie.Periodicite value = periodicite != null ? periodicite : RegimePaie.Periodicite.MENSUEL;
+        return switch (value) {
+            case JOURNALIER -> 365;
+            case HEBDO -> 52;
+            case QUINZAINE -> 26;
+            case QUINZOMADAIRE -> 24;
+            case MENSUEL -> 12;
+            case TRIMESTRIEL -> 4;
+            case SEMESTRIEL -> 2;
+            case ANNUEL -> 1;
+        };
     }
 }

@@ -4,12 +4,14 @@ import com.rsoft.hurmanagement.hurmasterdata.entity.BalanceConge;
 import com.rsoft.hurmanagement.hurmasterdata.entity.BalanceCongeAnnee;
 import com.rsoft.hurmanagement.hurmasterdata.entity.CongeEmploye;
 import com.rsoft.hurmanagement.hurmasterdata.entity.EmploiEmploye;
+import com.rsoft.hurmanagement.hurmasterdata.entity.JourConge;
 import com.rsoft.hurmanagement.hurmasterdata.entity.TypeConge;
 import com.rsoft.hurmanagement.hurmasterdata.repository.BalanceCongeAnneeRepository;
 import com.rsoft.hurmanagement.hurmasterdata.repository.BalanceCongeRepository;
 import com.rsoft.hurmanagement.hurmasterdata.repository.CongeEmployeRepository;
 import com.rsoft.hurmanagement.hurmasterdata.repository.EmploiEmployeRepository;
-import com.rsoft.hurmanagement.hurmasterdata.repository.PointageBrutRepository;
+import com.rsoft.hurmanagement.hurmasterdata.repository.JourCongeRepository;
+import com.rsoft.hurmanagement.hurmasterdata.repository.PresenceEmployeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,7 +20,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,31 +32,37 @@ public class CongeEmployeFinalizeService {
     private final BalanceCongeRepository balanceCongeRepository;
     private final BalanceCongeAnneeRepository balanceCongeAnneeRepository;
     private final EmploiEmployeRepository emploiEmployeRepository;
-    private final PointageBrutRepository pointageBrutRepository;
+    private final PresenceEmployeRepository presenceEmployeRepository;
+    private final JourCongeRepository jourCongeRepository;
 
     @Transactional
     public CongeEmploye finalizeConge(Long congeId, String username, boolean autoFinalize) {
+                
         CongeEmploye conge = congeEmployeRepository.findById(congeId)
                 .orElseThrow(() -> new RuntimeException("CongeEmploye not found with id: " + congeId));
         if (conge.getStatut() != CongeEmploye.StatutConge.EN_COURS) {
             throw new RuntimeException("CongeEmploye must be EN_COURS to finalize");
         }
 
-        if (autoFinalize && conge.getDateDebutReel() == null) {
+        if (conge.getDateDebutReel() == null) {
             conge.setDateDebutReel(conge.getDateDebutPlan());
         }
-        if (autoFinalize && conge.getDateFinReel() == null) {
+        if (conge.getDateFinReel() == null) {
             conge.setDateFinReel(conge.getDateFinPlan());
         }
 
         if (conge.getDateDebutReel() != null && conge.getDateFinReel() != null) {
-            conge.setNbJoursReel(calculateNbJours(conge.getDateDebutReel(), conge.getDateFinReel()));
+            conge.setNbJoursReel(calculateNbJoursExcludingOffAndHolidays(
+                    conge.getEmploiEmploye(),
+                    conge.getDateDebutReel(),
+                    conge.getDateFinReel()
+            ));
         }
 
         updateBalances(conge);
         releaseEmploiConge(conge);
 
-        conge.setStatut(CongeEmploye.StatutConge.FINALISE);
+        conge.setStatut(CongeEmploye.StatutConge.TERMINE);
         conge.setUpdatedBy(username);
         conge.setUpdatedOn(OffsetDateTime.now());
         conge.setRowscn(conge.getRowscn() + 1);
@@ -69,14 +76,10 @@ public class CongeEmployeFinalizeService {
 
     @Transactional
     public Map<String, Object> autoFinalizeForDate(LocalDate targetDate, Long entrepriseId, String username) {
-        List<CongeEmploye> conges = congeEmployeRepository.findByStatutAndDateFinPlanBefore(
-                CongeEmploye.StatutConge.EN_COURS,
-                targetDate
-        );
-
+        List<CongeEmploye> conges = congeEmployeRepository.findByStatut(CongeEmploye.StatutConge.EN_COURS);
         int total = 0;
         int finalized = 0;
-        int skippedNoPointage = 0;
+        int skippedNoPresence = 0;
         for (CongeEmploye conge : conges) {
             if (entrepriseId != null) {
                 Long congeEntrepriseId = conge.getEntreprise() != null ? conge.getEntreprise().getId() : null;
@@ -85,8 +88,11 @@ public class CongeEmployeFinalizeService {
                 }
             }
             total++;
-            if (!hasPointageForDay(conge, targetDate)) {
-                skippedNoPointage++;
+            if (conge.getDateDebutPlan() == null) {
+                continue;
+            }
+            if (!hasPresenceFromStartDate(conge)) {
+                skippedNoPresence++;
                 continue;
             }
             finalizeConge(conge.getId(), username, true);
@@ -97,22 +103,22 @@ public class CongeEmployeFinalizeService {
         result.put("success", true);
         result.put("totalRows", total);
         result.put("finalizedRows", finalized);
-        result.put("skippedNoPointage", skippedNoPointage);
+        result.put("skippedNoPresence", skippedNoPresence);
         result.put("message", "Finalized " + finalized + " leaves");
         return result;
     }
 
-    private boolean hasPointageForDay(CongeEmploye conge, LocalDate date) {
+    private boolean hasPresenceFromStartDate(CongeEmploye conge) {
         if (conge.getEmploye() == null || conge.getEmploye().getId() == null) {
             return false;
         }
-        ZoneId zone = ZoneId.systemDefault();
-        OffsetDateTime start = date.atStartOfDay(zone).toOffsetDateTime();
-        OffsetDateTime end = date.plusDays(1).atStartOfDay(zone).toOffsetDateTime();
-        return pointageBrutRepository.existsByEmployeIdAndDateHeurePointageBetween(
+        if (conge.getDateDebutPlan() == null) {
+            return false;
+        }
+        return presenceEmployeRepository.existsByEmployeIdAndDateJourGreaterThanEqualAndStatutPresence(
                 conge.getEmploye().getId(),
-                start,
-                end
+                conge.getDateDebutPlan(),
+                com.rsoft.hurmanagement.hurmasterdata.entity.PresenceEmploye.StatutPresence.VALIDE
         );
     }
 
@@ -206,11 +212,38 @@ public class CongeEmployeFinalizeService {
         return BigDecimal.valueOf(typeConge.getNbJours()).setScale(2, RoundingMode.HALF_UP);
     }
 
-    private BigDecimal calculateNbJours(LocalDate dateDebut, LocalDate dateFin) {
+    private BigDecimal calculateNbJoursExcludingOffAndHolidays(EmploiEmploye emploi, LocalDate dateDebut, LocalDate dateFin) {
         if (dateDebut == null || dateFin == null) {
             return BigDecimal.ZERO;
         }
-        long days = java.time.temporal.ChronoUnit.DAYS.between(dateDebut, dateFin) + 1;
-        return BigDecimal.valueOf(days).setScale(2, RoundingMode.HALF_UP);
+        LocalDate start = dateDebut;
+        LocalDate end = dateFin;
+        if (end.isBefore(start)) {
+            LocalDate tmp = start;
+            start = end;
+            end = tmp;
+        }
+
+        long effectiveDays = 0;
+        for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
+            if (isOffDay(emploi, date)) {
+                continue;
+            }
+            if (jourCongeRepository.existsByDateCongeAndActif(date, JourConge.Actif.Y)) {
+                continue;
+            }
+            effectiveDays++;
+        }
+        return BigDecimal.valueOf(effectiveDays).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private boolean isOffDay(EmploiEmploye emploi, LocalDate date) {
+        if (emploi == null || date == null) {
+            return false;
+        }
+        int day = date.getDayOfWeek().getValue();
+        return java.util.Objects.equals(emploi.getJourOff1(), day)
+                || java.util.Objects.equals(emploi.getJourOff2(), day)
+                || java.util.Objects.equals(emploi.getJourOff3(), day);
     }
 }

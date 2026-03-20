@@ -393,9 +393,6 @@ public class PresenceBuilderService {
         pointage.setQualitePointage(PointageBrut.QualitePointage.OK);
         pointage.setTraiteLe(OffsetDateTime.now());
         pointage.setTraitePar(username);
-        if (pointage.getPresenceEmploye() != null) {
-            pointage.setNoPresence(pointage.getPresenceEmploye().getId());
-        }
         pointage.setRowscn(pointage.getRowscn() != null ? pointage.getRowscn() + 1 : 1);
         pointageBrutRepository.save(pointage);
     }

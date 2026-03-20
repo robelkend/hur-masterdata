@@ -258,7 +258,7 @@ public class SupplementaireEmployeService {
                 boolean hasPresence = presence != null;
                 boolean isFerie = jourCongeRepository.existsByDateCongeAndActif(date, JourConge.Actif.Y);
                 boolean isOff = isOffDay(emploi, date);
-                boolean isConge = congeEmployeRepository.existsActiveCongeForDate(employe.getId(), date);
+                boolean isConge = congeEmployeRepository.existsCongeForDate(employe.getId(), date);
 
                 List<Planification> planifications = resolvePlanifications(emploi, date);
                 if (planifications.isEmpty()) {

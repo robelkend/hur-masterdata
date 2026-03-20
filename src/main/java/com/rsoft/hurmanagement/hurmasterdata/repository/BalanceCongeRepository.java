@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
+
 @Repository
 public interface BalanceCongeRepository extends JpaRepository<BalanceConge, Long> {
 
@@ -25,4 +27,7 @@ public interface BalanceCongeRepository extends JpaRepository<BalanceConge, Long
             Long emploiEmployeId,
             Long employeId,
             Long typeCongeId);
+
+    @Query("SELECT COALESCE(SUM(b.soldeDisponible), 0) FROM BalanceConge b WHERE b.employe.id = :employeId AND b.actif = 'Y'")
+    BigDecimal sumSoldeDisponibleByEmploye(@Param("employeId") Long employeId);
 }

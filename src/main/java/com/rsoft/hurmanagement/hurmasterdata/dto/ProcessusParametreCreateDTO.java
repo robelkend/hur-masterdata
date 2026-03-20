@@ -19,7 +19,7 @@ public class ProcessusParametreCreateDTO {
     @Size(max = 255, message = "Description must not exceed 255 characters")
     private String description;
     
-    private String actif = "N";
+    private String actif = "Y";
     
     @NotNull(message = "Frequence is required")
     private String frequence = "JOUR";

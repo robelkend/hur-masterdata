@@ -15,7 +15,7 @@ public interface ProcessusParametreRepository extends JpaRepository<ProcessusPar
     Optional<ProcessusParametre> findByCodeProcessus(String codeProcessus);
 
     @Query("SELECT p FROM ProcessusParametre p WHERE " +
-           "p.actif = 'Y' AND " +
+           "(p.actif = 'Y' OR p.actif = 'O') AND " +
            "p.statut <> com.rsoft.hurmanagement.hurmasterdata.entity.ProcessusParametre$Statut.EN_EXECUTION AND " +
            "(p.prochaineExecutionAt IS NULL OR p.prochaineExecutionAt <= :now)")
     List<ProcessusParametre> findDueJobs(@Param("now") OffsetDateTime now);

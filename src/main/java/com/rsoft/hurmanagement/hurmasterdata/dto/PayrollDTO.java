@@ -14,6 +14,7 @@ public class PayrollDTO {
     private String libelle;
     private LocalDate dateDebut;
     private LocalDate dateFin;
+    private Integer periodePaie;
     private String statut;
     private String createdBy;
     private OffsetDateTime createdOn;

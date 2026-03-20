@@ -73,8 +73,11 @@ public class EntrepriseService {
         entity.setEtat(dto.getEtat());
         entity.setVille(dto.getVille());
         entity.setAdresse(dto.getAdresse());
+        entity.setCodePostal(dto.getCodePostal());
+        entity.setPays(dto.getPays());
         entity.setTelephone1(dto.getTelephone1());
         entity.setTelephone2(dto.getTelephone2());
+        entity.setTelephone3(dto.getTelephone3());
         entity.setFax(dto.getFax());
         entity.setCourriel(dto.getCourriel());
         
@@ -152,11 +155,20 @@ public class EntrepriseService {
         if (dto.getAdresse() != null) {
             entity.setAdresse(dto.getAdresse());
         }
+        if (dto.getCodePostal() != null) {
+            entity.setCodePostal(dto.getCodePostal());
+        }
+        if (dto.getPays() != null) {
+            entity.setPays(dto.getPays());
+        }
         if (dto.getTelephone1() != null) {
             entity.setTelephone1(dto.getTelephone1());
         }
         if (dto.getTelephone2() != null) {
             entity.setTelephone2(dto.getTelephone2());
+        }
+        if (dto.getTelephone3() != null) {
+            entity.setTelephone3(dto.getTelephone3());
         }
         if (dto.getFax() != null) {
             entity.setFax(dto.getFax());
@@ -238,8 +250,11 @@ public class EntrepriseService {
         dto.setEtat(entity.getEtat());
         dto.setVille(entity.getVille());
         dto.setAdresse(entity.getAdresse());
+        dto.setCodePostal(entity.getCodePostal());
+        dto.setPays(entity.getPays());
         dto.setTelephone1(entity.getTelephone1());
         dto.setTelephone2(entity.getTelephone2());
+        dto.setTelephone3(entity.getTelephone3());
         dto.setFax(entity.getFax());
         dto.setCourriel(entity.getCourriel());
         dto.setCongeCumule(entity.getCongeCumule());

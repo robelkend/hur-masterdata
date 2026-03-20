@@ -45,8 +45,8 @@ public interface PresenceEmployeRepository extends JpaRepository<PresenceEmploye
            "AND (:entrepriseId IS NULL OR p.entreprise.id = :entrepriseId) " +
            "AND (:employeId IS NULL OR p.employe.id = :employeId) " +
            "AND (:actif IS NULL OR p.employe.actif = :actif) " +
-           "AND (:typeEmployeId IS NULL OR ee.typeEmploye.id = :typeEmployeId OR p.typeEmploye.id = :typeEmployeId) " +
-           "AND (:uniteOrganisationnelleId IS NULL OR ee.uniteOrganisationnelle.id = :uniteOrganisationnelleId) " +
+           "AND (:typeEmployeIds IS NULL OR ee.typeEmploye.id IN :typeEmployeIds OR p.typeEmploye.id IN :typeEmployeIds) " +
+           "AND (:uniteOrganisationnelleIds IS NULL OR ee.uniteOrganisationnelle.id IN :uniteOrganisationnelleIds) " +
            "AND (:gestionnaireId IS NULL OR ee.gestionnaire.id = :gestionnaireId) " +
            "AND (:nuit IS NULL OR " +
            "     (:nuit = 'Y' AND p.dateDepart IS NOT NULL AND p.dateDepart > p.dateJour) OR " +
@@ -60,8 +60,8 @@ public interface PresenceEmployeRepository extends JpaRepository<PresenceEmploye
             @Param("entrepriseId") Long entrepriseId,
             @Param("employeId") Long employeId,
             @Param("actif") String actif,
-            @Param("typeEmployeId") Long typeEmployeId,
-            @Param("uniteOrganisationnelleId") Long uniteOrganisationnelleId,
+            @Param("typeEmployeIds") java.util.List<Long> typeEmployeIds,
+            @Param("uniteOrganisationnelleIds") java.util.List<Long> uniteOrganisationnelleIds,
             @Param("gestionnaireId") Long gestionnaireId,
             @Param("nuit") String nuit,
             @Param("regimePaieIds") java.util.List<Long> regimePaieIds);
@@ -96,4 +96,21 @@ public interface PresenceEmployeRepository extends JpaRepository<PresenceEmploye
     java.util.List<PresenceEmploye> findByStatutPresence(PresenceEmploye.StatutPresence statutPresence);
 
     boolean existsByEmployeIdAndDateJour(Long employeId, LocalDate dateJour);
+
+    boolean existsByEmployeIdAndDateJourAndStatutPresence(Long employeId,
+                                                          LocalDate dateJour,
+                                                          PresenceEmploye.StatutPresence statutPresence);
+
+    boolean existsByEmployeIdAndDateJourGreaterThanEqualAndDateJourLessThanEqualAndStatutPresence(
+            Long employeId,
+            LocalDate dateJourDebut,
+            LocalDate dateJourFin,
+            PresenceEmploye.StatutPresence statutPresence
+    );
+
+    boolean existsByEmployeIdAndDateJourGreaterThanEqualAndStatutPresence(
+            Long employeId,
+            LocalDate dateJourDebut,
+            PresenceEmploye.StatutPresence statutPresence
+    );
 }

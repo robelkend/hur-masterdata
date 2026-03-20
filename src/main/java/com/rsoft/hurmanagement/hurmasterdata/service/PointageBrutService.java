@@ -72,9 +72,6 @@ public class PointageBrutService {
         entity.setQualitePointage(parseQualite(dto.getQualitePointage(), PointageBrut.QualitePointage.BRUT));
         entity.setMotifRejet(dto.getMotifRejet());
         entity.setStatutTraitement(parseStatut(dto.getStatutTraitement(), PointageBrut.StatutTraitement.BRUT));
-        if (dto.getNoPresence() != null) {
-            entity.setNoPresence(dto.getNoPresence());
-        }
         entity.setTraiteLe(dto.getTraiteLe());
         entity.setTraitePar(dto.getTraitePar());
         entity.setImporteLe(OffsetDateTime.now());
@@ -120,9 +117,6 @@ public class PointageBrutService {
         }
         if (dto.getStatutTraitement() != null) {
             entity.setStatutTraitement(parseStatut(dto.getStatutTraitement(), entity.getStatutTraitement()));
-        }
-        if (dto.getNoPresence() != null) {
-            entity.setNoPresence(dto.getNoPresence());
         }
         if (dto.getTraiteLe() != null) {
             entity.setTraiteLe(dto.getTraiteLe());
@@ -171,7 +165,6 @@ public class PointageBrutService {
             PresenceEmploye presence = presenceEmployeRepository.findById(presenceEmployeId)
                     .orElseThrow(() -> new RuntimeException("PresenceEmploye not found with id: " + presenceEmployeId));
             entity.setPresenceEmploye(presence);
-            entity.setNoPresence(presence.getId());
         }
     }
 
@@ -203,7 +196,6 @@ public class PointageBrutService {
         if (entity.getPresenceEmploye() != null) {
             dto.setPresenceEmployeId(entity.getPresenceEmploye().getId());
         }
-        dto.setNoPresence(entity.getNoPresence());
         dto.setTraiteLe(entity.getTraiteLe());
         dto.setTraitePar(entity.getTraitePar());
         dto.setImporteLe(entity.getImporteLe());

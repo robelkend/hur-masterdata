@@ -32,6 +32,11 @@ public class Payroll {
     @Column(name = "date_fin", nullable = false)
     private LocalDate dateFin;
 
+    // Some deployed databases do not have column `payroll.periode_paie`.
+    // Keep the field for business logic/DTO compatibility without forcing SQL mapping.
+    @Transient
+    private Integer periodePaie;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "statut", nullable = false, length = 20)
     private StatutPayroll statut = StatutPayroll.BROUILLON;

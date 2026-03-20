@@ -61,7 +61,7 @@ public class ProcessusParametreController {
         ProcessusParametre entity = new ProcessusParametre();
         entity.setCodeProcessus(request.getCodeProcessus());
         entity.setDescription(request.getDescription());
-        entity.setActif(request.getActif() != null ? request.getActif() : "Y");
+        entity.setActif(normalizeActif(request.getActif(), "Y"));
         entity.setDerniereExecutionAt(request.getDerniereExecutionAt());
         entity.setProchaineExecutionAt(request.getProchaineExecutionAt());
         entity.setFrequence(request.getFrequence());
@@ -92,7 +92,7 @@ public class ProcessusParametreController {
 
         entity.setCodeProcessus(request.getCodeProcessus());
         entity.setDescription(request.getDescription());
-        entity.setActif(request.getActif() != null ? request.getActif() : entity.getActif());
+        entity.setActif(normalizeActif(request.getActif(), entity.getActif()));
         entity.setDerniereExecutionAt(request.getDerniereExecutionAt());
         entity.setProchaineExecutionAt(request.getProchaineExecutionAt());
         entity.setFrequence(request.getFrequence());
@@ -132,7 +132,7 @@ public class ProcessusParametreController {
             @RequestHeader(value = "X-Username", defaultValue = "system") String username) {
         ProcessusParametre entity = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("ProcessusParametre not found with id: " + id));
-        if (!"Y".equalsIgnoreCase(entity.getActif())) {
+        if (!isActiveFlag(entity.getActif())) {
             throw new RuntimeException("Processus is not active");
         }
         if (entity.getStatut() == ProcessusParametre.Statut.EN_EXECUTION) {
@@ -160,6 +160,46 @@ public class ProcessusParametreController {
         return ResponseEntity.ok(repository.save(entity));
     }
 
+    @PostMapping("/{id}/deactivate")
+    public ResponseEntity<ProcessusParametre> deactivate(
+            @PathVariable Long id,
+            @RequestParam Integer rowscn,
+            @RequestHeader(value = "X-Username", defaultValue = "system") String username) {
+        ProcessusParametre entity = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("ProcessusParametre not found with id: " + id));
+
+        if (!entity.getRowscn().equals(rowscn)) {
+            throw new RuntimeException("Record has been modified by another user. Please refresh before saving.");
+        }
+        if (!isActiveFlag(entity.getActif())) {
+            return ResponseEntity.ok(entity);
+        }
+        entity.setActif("N");
+        entity.setUpdatedBy(username);
+        entity.setUpdatedOn(OffsetDateTime.now());
+        return ResponseEntity.ok(repository.save(entity));
+    }
+
+    @PostMapping("/{id}/reactivate")
+    public ResponseEntity<ProcessusParametre> reactivate(
+            @PathVariable Long id,
+            @RequestParam Integer rowscn,
+            @RequestHeader(value = "X-Username", defaultValue = "system") String username) {
+        ProcessusParametre entity = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("ProcessusParametre not found with id: " + id));
+
+        if (!entity.getRowscn().equals(rowscn)) {
+            throw new RuntimeException("Record has been modified by another user. Please refresh before saving.");
+        }
+        if (isActiveFlag(entity.getActif())) {
+            return ResponseEntity.ok(entity);
+        }
+        entity.setActif("Y");
+        entity.setUpdatedBy(username);
+        entity.setUpdatedOn(OffsetDateTime.now());
+        return ResponseEntity.ok(repository.save(entity));
+    }
+
     private OffsetDateTime computeNextExecution(ProcessusParametre job, OffsetDateTime base) {
         if (job.getFrequence() == null || job.getNombre() == null) {
             return null;
@@ -173,6 +213,20 @@ public class ProcessusParametreController {
             case MOIS -> base.plusMonths(amount);
             case ANNEE -> base.plusYears(amount);
         };
+    }
+
+    private String normalizeActif(String actif, String defaultValue) {
+        if (actif == null || actif.isBlank()) {
+            return defaultValue;
+        }
+        if ("Y".equalsIgnoreCase(actif) || "O".equalsIgnoreCase(actif)) {
+            return "Y";
+        }
+        return "N";
+    }
+
+    private boolean isActiveFlag(String actif) {
+        return "Y".equalsIgnoreCase(actif) || "O".equalsIgnoreCase(actif);
     }
 
     @Data

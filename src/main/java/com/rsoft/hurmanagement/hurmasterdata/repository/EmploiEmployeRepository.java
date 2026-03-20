@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -47,4 +48,9 @@ public interface EmploiEmployeRepository extends JpaRepository<EmploiEmploye, Lo
            "AND ee.dateDebut <= :date AND (ee.dateFin IS NULL OR ee.dateFin >= :date) " +
            "ORDER BY CASE WHEN ee.principal = 'Y' THEN 0 ELSE 1 END, ee.dateDebut DESC, ee.id DESC")
     List<EmploiEmploye> findActiveForDate(@Param("employeId") Long employeId, @Param("date") java.time.LocalDate date);
+
+    List<EmploiEmploye> findByStatutEmploiAndDateFinStatutLessThanEqual(
+            EmploiEmploye.StatutEmploi statutEmploi,
+            LocalDate dateFinStatut
+    );
 }

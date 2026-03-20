@@ -147,6 +147,25 @@ public class PresenceEmployeService {
         repository.delete(entity);
     }
 
+    @Transactional
+    public PresenceEmployeDTO devalidate(Long id, Integer rowscn, String username) {
+        PresenceEmploye entity = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("PresenceEmploye not found with id: " + id));
+        if (!entity.getRowscn().equals(rowscn)) {
+            throw new RuntimeException("Record has been modified by another user. Please refresh before saving.");
+        }
+        if (entity.getStatutPresence() == PresenceEmploye.StatutPresence.BROUILLON) {
+            return toDTO(entity);
+        }
+
+        entity.setStatutPresence(PresenceEmploye.StatutPresence.BROUILLON);
+        entity.setUpdatedBy(username);
+        entity.setUpdatedOn(java.time.OffsetDateTime.now());
+        entity.setRowscn(entity.getRowscn() + 1);
+
+        return toDTO(repository.save(entity));
+    }
+
     void applyDerivedFields(PresenceEmploye entity) {
         EmploiEmploye emploi = resolveEmploiEmploye(entity.getEmploye().getId(), entity.getDateJour());
         entity.setTypeEmploye(emploi != null ? emploi.getTypeEmploye() : null);
@@ -270,7 +289,7 @@ public class PresenceEmployeService {
         if (entity.getStatutPresence() != PresenceEmploye.StatutPresence.VALIDE) {
             return "{}";
         }
-        boolean conge = congeEmployeRepository.existsActiveCongeForDate(entity.getEmploye().getId(), entity.getDateJour());
+        boolean conge = congeEmployeRepository.existsCongeForDate(entity.getEmploye().getId(), entity.getDateJour());
         boolean off = isOffDay(entity.getEmploye().getId(), entity.getDateJour());
         boolean ferie = jourCongeRepository.existsByDateCongeAndActif(entity.getDateJour(), JourConge.Actif.Y);
 

@@ -12,6 +12,9 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class PresenceReportRowDTO {
     private Integer rang;
+    private Long uniteOrganisationnelleId;
+    private String uniteOrganisationnelleCode;
+    private String uniteOrganisationnelleNom;
     private String codeEmploye;
     private String nomEmploye;
     private LocalDate dateDebut;
@@ -22,7 +25,10 @@ public class PresenceReportRowDTO {
     private String horaireSpecialNuit; // OUI/NON
     private String off; // OUI/NON
     private String ferie; // OUI/NON
+    private String conge; // OUI/NON
     private String absence; // OUI/NON
+    private Integer nbPresencesJour;
+    private String issueLevel; // NONE/WARN/DUPLICATE/ABSENCE/ERROR
     private BigDecimal nbHeures;
     private String refSup; // OFF/FERIE/CONGE/ABS/...
 }

@@ -10,6 +10,8 @@ public class RegimePaieCreateDTO {
     private String description;
     private RegimePaie.ModeRemuneration modeRemuneration;
     private RegimePaie.Periodicite periodicite;
+    private Integer nbPeriodePaie;
+    private Integer periodePaieCourante;
     private Long deviseId;
     private String horaireActif;
     private Integer joursPayes;

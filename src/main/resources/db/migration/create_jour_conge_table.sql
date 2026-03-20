@@ -1,5 +1,5 @@
--- Create jour_conge table
-CREATE TABLE IF NOT EXISTS jour_conge (
+-- Create jour_ferie table
+CREATE TABLE IF NOT EXISTS jour_ferie (
     id BIGSERIAL PRIMARY KEY,
     type VARCHAR(20) NOT NULL CHECK (type IN ('FIXE', 'PAQUE', 'CARNAVAL', 'AUTRE')),
     date_conge DATE NOT NULL,
@@ -18,10 +18,10 @@ CREATE TABLE IF NOT EXISTS jour_conge (
 );
 
 -- Create index on date_conge for faster lookups and sorting
-CREATE INDEX IF NOT EXISTS idx_jour_conge_date_conge ON jour_conge(date_conge);
+CREATE INDEX IF NOT EXISTS idx_jour_ferie_date_conge ON jour_ferie(date_conge);
 
 -- Create index on type for faster filtering
-CREATE INDEX IF NOT EXISTS idx_jour_conge_type ON jour_conge(type);
+CREATE INDEX IF NOT EXISTS idx_jour_ferie_type ON jour_ferie(type);
 
 -- Add comment to table
-COMMENT ON TABLE jour_conge IS 'Table for storing holiday/leave day definitions';
+COMMENT ON TABLE jour_ferie IS 'Table for storing holiday/leave day definitions';

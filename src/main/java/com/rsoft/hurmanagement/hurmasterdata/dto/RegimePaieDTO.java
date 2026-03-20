@@ -12,6 +12,8 @@ public class RegimePaieDTO {
     private String description;
     private RegimePaie.ModeRemuneration modeRemuneration;
     private RegimePaie.Periodicite periodicite;
+    private Integer nbPeriodePaie;
+    private Integer periodePaieCourante;
     
     // Devise
     private Long deviseId;

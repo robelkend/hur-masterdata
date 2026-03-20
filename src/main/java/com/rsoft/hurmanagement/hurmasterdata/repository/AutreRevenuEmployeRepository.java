@@ -4,11 +4,13 @@ import com.rsoft.hurmanagement.hurmasterdata.entity.AutreRevenuEmploye;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Repository
@@ -43,6 +45,53 @@ public interface AutreRevenuEmployeRepository extends JpaRepository<AutreRevenuE
     @org.springframework.data.jpa.repository.Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE AutreRevenuEmploye a SET a.payrollNo = 0 WHERE a.payrollNo = :payrollId")
     int clearPayrollNo(@Param("payrollId") Integer payrollId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+           UPDATE AutreRevenuEmploye a
+              SET a.statut = com.rsoft.hurmanagement.hurmasterdata.entity.AutreRevenuEmploye.StatutAutreRevenu.VALIDE,
+                  a.updatedBy = :username,
+                  a.updatedOn = :updatedOn,
+                  a.rowscn = a.rowscn + 1
+            WHERE a.statut = com.rsoft.hurmanagement.hurmasterdata.entity.AutreRevenuEmploye.StatutAutreRevenu.BROUILLON
+              AND a.dateRevenu >= :dateDebut
+              AND a.dateRevenu <= :dateFin
+              AND (:entrepriseId IS NULL OR a.entreprise.id = :entrepriseId)
+              AND (:employeId IS NULL OR a.employe.id = :employeId)
+              AND (:typeRevenuId IS NULL OR a.typeRevenu.id = :typeRevenuId)
+           """)
+    int validateDraftsInRange(
+            @Param("dateDebut") LocalDate dateDebut,
+            @Param("dateFin") LocalDate dateFin,
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("employeId") Long employeId,
+            @Param("typeRevenuId") Long typeRevenuId,
+            @Param("username") String username,
+            @Param("updatedOn") OffsetDateTime updatedOn);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+           UPDATE AutreRevenuEmploye a
+              SET a.statut = com.rsoft.hurmanagement.hurmasterdata.entity.AutreRevenuEmploye.StatutAutreRevenu.BROUILLON,
+                  a.updatedBy = :username,
+                  a.updatedOn = :updatedOn,
+                  a.rowscn = a.rowscn + 1
+            WHERE a.statut = com.rsoft.hurmanagement.hurmasterdata.entity.AutreRevenuEmploye.StatutAutreRevenu.VALIDE
+              AND a.payrollNo = 0
+              AND a.dateRevenu >= :dateDebut
+              AND a.dateRevenu <= :dateFin
+              AND (:entrepriseId IS NULL OR a.entreprise.id = :entrepriseId)
+              AND (:employeId IS NULL OR a.employe.id = :employeId)
+              AND (:typeRevenuId IS NULL OR a.typeRevenu.id = :typeRevenuId)
+           """)
+    int devalidateValidatedInRange(
+            @Param("dateDebut") LocalDate dateDebut,
+            @Param("dateFin") LocalDate dateFin,
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("employeId") Long employeId,
+            @Param("typeRevenuId") Long typeRevenuId,
+            @Param("username") String username,
+            @Param("updatedOn") OffsetDateTime updatedOn);
 
     boolean existsByEmployeIdAndTypeRevenuIdAndDateRevenuBetween(Long employeId,
                                                                  Long typeRevenuId,

@@ -40,6 +40,13 @@ public class RubriquePaieService {
                 .map(this::toDTO)
                 .toList();
     }
+
+    @Transactional(readOnly = true)
+    public java.util.List<RubriquePaieDTO> findAllBoni() {
+        return repository.findAllBoni().stream()
+                .map(this::toDTO)
+                .toList();
+    }
     
     @Transactional
     public RubriquePaieDTO create(RubriquePaieCreateDTO dto, String username) {

@@ -87,6 +87,14 @@ public class PresenceEmployeController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/devalidate")
+    public ResponseEntity<PresenceEmployeDTO> devalidate(
+            @PathVariable Long id,
+            @RequestParam Integer rowscn,
+            @RequestHeader(value = "X-Username", defaultValue = "system") String username) {
+        return ResponseEntity.ok(service.devalidate(id, rowscn, username));
+    }
+
     @PostMapping("/rearrange-close")
     public ResponseEntity<java.util.Map<String, Object>> rearrangeAndClose(
             @Valid @RequestBody RearrangeRequest request,

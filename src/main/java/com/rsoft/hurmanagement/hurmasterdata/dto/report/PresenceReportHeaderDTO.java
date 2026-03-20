@@ -15,8 +15,11 @@ public class PresenceReportHeaderDTO {
     private String adresse;
     private String ville;
     private String etat;
+    private String pays;
+    private String codePostal;
     private String telephone1;
     private String telephone2;
+    private String telephone3;
     private String fax;
     private String courriel;
     private String logoUrl;

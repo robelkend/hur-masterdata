@@ -114,6 +114,11 @@ public class PresenceMergeService {
                                    List<PresenceEmploye> nextDayPresences,
                                    MergePlanContext plan,
                                    String username) {
+        prepareNightLastOpenPresence(dayPresences, plan, dateJour);
+        if (shouldTreatAsDayMerge(dayPresences, nextDayPresences, plan, dateJour)) {
+            return mergeDay(dayPresences, plan.asDayPlan(), username);
+        }
+
         LocalDateTime nightWindowStart = computeNightWindowStart(dateJour, plan);
         LocalDateTime nightWindowEnd = computeNightWindowEnd(dateJour, plan);
 
@@ -147,7 +152,9 @@ public class PresenceMergeService {
             return null;
         }
 
-        List<PresenceInterval> intervals = toIntervals(candidates, plan, true, dateJour.plusDays(1));
+        closeLastOpenForCrossDayNightMerge(candidates, plan, dateJour);
+
+        List<PresenceInterval> intervals = toIntervals(candidates, plan, true, null);
         if (intervals.size() < 2) {
             return null;
         }
@@ -155,10 +162,114 @@ public class PresenceMergeService {
         PresenceInterval first = intervals.get(0);
         PresenceInterval last = intervals.get(intervals.size() - 1);
         PresenceEmploye keeper = first.presence;
-        LocalDate dateDepart = dateJour.plusDays(1);
-        LocalDateTime end = LocalDateTime.of(dateDepart, last.end.toLocalTime());
+        LocalDate dateDepart = last.end.toLocalDate();
+        LocalDateTime end = last.end;
 
         return applyMerge(keeper, intervals, first.start, end, dateDepart, username);
+    }
+
+    private void closeLastOpenForCrossDayNightMerge(List<PresenceEmploye> candidates, MergePlanContext plan, LocalDate dateJour) {
+        if (candidates == null || candidates.isEmpty()) {
+            return;
+        }
+        PresenceEmploye last = candidates.stream()
+                .max(Comparator.comparing(p -> resolveNightStartForSorting(p, plan)))
+                .orElse(null);
+        if (last == null || trimToNull(last.getHeureDepart()) != null) {
+            return;
+        }
+        String closeTime = trimToNull(plan.autoCloseNight);
+        if (closeTime == null) {
+            closeTime = trimToNull(plan.nightClosingLimit);
+        }
+        if (closeTime == null) {
+            closeTime = trimToNull(plan.autoCloseDay);
+        }
+        if (closeTime != null) {
+            last.setHeureDepart(closeTime);
+        }
+        if (last.getDateJour() != null && (last.getDateDepart() == null || !last.getDateDepart().isAfter(last.getDateJour()))) {
+            if (plan.specialDateFin != null && plan.specialDateFin.isAfter(last.getDateJour())) {
+                last.setDateDepart(plan.specialDateFin);
+            } else {
+                last.setDateDepart(dateJour.plusDays(1));
+            }
+        }
+    }
+
+    private boolean shouldTreatAsDayMerge(List<PresenceEmploye> dayPresences,
+                                          List<PresenceEmploye> nextDayPresences,
+                                          MergePlanContext plan,
+                                          LocalDate dateJour) {
+        for (PresenceEmploye presence : dayPresences) {
+            if (presence.getDateDepart() != null && presence.getDateDepart().isAfter(dateJour)) {
+                return false;
+            }
+        }
+        LocalTime nextDayLimit = parseTime(plan.nightClosingLimit);
+        if (nextDayLimit == null) {
+            return true;
+        }
+        for (PresenceEmploye presence : nextDayPresences) {
+            LocalTime arrivalTime = parseTime(trimToNull(presence.getHeureArrivee()));
+            if (arrivalTime == null) {
+                continue;
+            }
+            if (!arrivalTime.isBefore(LocalTime.MIDNIGHT) && !arrivalTime.isAfter(nextDayLimit)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void prepareNightLastOpenPresence(List<PresenceEmploye> dayPresences, MergePlanContext plan, LocalDate dateJour) {
+        if (dayPresences == null || dayPresences.size() < 2 || !plan.hasNightPlan) {
+            return;
+        }
+        List<PresenceEmploye> ordered = normalizeAndSort(dayPresences);
+        if (ordered.isEmpty()) {
+            return;
+        }
+        PresenceEmploye last = ordered.get(ordered.size() - 1);
+        if (trimToNull(last.getHeureDepart()) != null) {
+            return;
+        }
+
+        LocalTime arrival = parseTime(trimToNull(last.getHeureArrivee()));
+        LocalTime limit = computeNightLimitWithOvertime(plan);
+        LocalTime nightStart = parseTime(plan.nightStart);
+
+        boolean closeWithDay = false;
+        if (arrival != null) {
+            if (nightStart != null && arrival.isBefore(nightStart)) {
+                closeWithDay = true;
+            } else if (limit != null && isArrivalBeforeOrEqualNightLimit(arrival, limit, nightStart)) {
+                closeWithDay = true;
+            }
+        }
+
+        String closeTime;
+        if (closeWithDay) {
+            closeTime = trimToNull(plan.autoCloseDay);
+        } else {
+            closeTime = trimToNull(plan.autoCloseNight);
+        }
+        if (closeTime == null) {
+            closeTime = trimToNull(plan.autoCloseNight) != null ? trimToNull(plan.autoCloseNight) : trimToNull(plan.autoCloseDay);
+        }
+        if (closeTime != null) {
+            last.setHeureDepart(closeTime);
+        }
+
+        if (!closeWithDay
+                && last.getDateJour() != null
+                && (last.getDateDepart() == null || !last.getDateDepart().isAfter(last.getDateJour()))) {
+            if (plan.specialDateFin != null && plan.specialDateFin.isAfter(last.getDateJour())) {
+                last.setDateDepart(plan.specialDateFin);
+            } else {
+                last.setDateDepart(dateJour.plusDays(1));
+            }
+        }
     }
 
     private MergeResult applyMerge(PresenceEmploye keeper,
@@ -217,7 +328,7 @@ public class PresenceMergeService {
                                                LocalDate forceDepartureDate) {
         List<PresenceInterval> intervals = new ArrayList<>();
         for (PresenceEmploye presence : candidates) {
-            LocalDateTime start = resolveStart(presence);
+            LocalDateTime start = nightMode ? resolveNightStartForSorting(presence, plan) : resolveStart(presence);
             if (start == null) {
                 continue;
             }
@@ -229,6 +340,22 @@ public class PresenceMergeService {
         }
         intervals.sort(Comparator.comparing(i -> i.start));
         return intervals;
+    }
+
+    private LocalDateTime resolveNightStartForSorting(PresenceEmploye presence, MergePlanContext plan) {
+        LocalDateTime start = resolveStart(presence);
+        if (start == null) {
+            return null;
+        }
+        if (presence.getDateJour() == null || presence.getDateDepart() == null || !presence.getDateDepart().isAfter(presence.getDateJour())) {
+            return start;
+        }
+        LocalTime arrival = parseTime(trimToNull(presence.getHeureArrivee()));
+        LocalTime nightStart = parseTime(plan.nightStart);
+        if (arrival != null && nightStart != null && arrival.isBefore(nightStart) && start.toLocalDate().equals(presence.getDateJour())) {
+            return start.plusDays(1);
+        }
+        return start;
     }
 
     private int computePauseMinutes(List<PresenceInterval> intervals) {
@@ -245,42 +372,24 @@ public class PresenceMergeService {
     }
 
     private LocalDateTime resolveDayEnd(List<PresenceInterval> intervals, MergePlanContext plan, LocalDate dateJour) {
+        if (intervals.isEmpty()) {
+            return null;
+        }
+        PresenceInterval lastInterval = intervals.get(intervals.size() - 1);
+        if (trimToNull(lastInterval.presence.getHeureDepart()) == null) {
+            LocalTime closeTime = parseTime(plan.autoCloseDay);
+            if (closeTime != null) {
+                return LocalDateTime.of(dateJour, closeTime);
+            }
+        }
+
         LocalDateTime maxEnd = null;
-        LocalTime maxClosedDeparture = null;
         for (PresenceInterval interval : intervals) {
-            String depart = trimToNull(interval.presence.getHeureDepart());
-            if (depart == null) {
-                continue;
-            }
-            LocalTime depTime = parseTime(depart);
-            if (depTime == null) {
-                continue;
-            }
-            if (maxClosedDeparture == null || depTime.isAfter(maxClosedDeparture)) {
-                maxClosedDeparture = depTime;
-            }
             if (maxEnd == null || interval.end.isAfter(maxEnd)) {
                 maxEnd = interval.end;
             }
         }
-
-        boolean hasBlockingOpen = false;
-        for (PresenceInterval interval : intervals) {
-            if (trimToNull(interval.presence.getHeureDepart()) != null) {
-                continue;
-            }
-            LocalTime arrival = parseTime(trimToNull(interval.presence.getHeureArrivee()));
-            if (arrival == null || maxClosedDeparture == null || !arrival.isAfter(maxClosedDeparture)) {
-                hasBlockingOpen = true;
-                break;
-            }
-        }
-
-        if (!hasBlockingOpen && maxEnd != null) {
-            return maxEnd;
-        }
-        LocalTime closeTime = parseTime(plan.autoCloseDay);
-        return closeTime != null ? LocalDateTime.of(dateJour, closeTime) : maxEnd;
+        return maxEnd;
     }
 
     private void updatePointagesBrutsNoPresenceSafely(Long sourcePresenceId, PresenceEmploye mergedPresence) {
@@ -290,9 +399,6 @@ public class PresenceMergeService {
         }
         for (PointageBrut pointage : pointages) {
             pointage.setPresenceEmploye(mergedPresence);
-            if (pointage.getNoPresence() == null) {
-                pointage.setNoPresence(mergedPresence.getId());
-            }
             pointage.setRowscn(pointage.getRowscn() != null ? pointage.getRowscn() + 1 : 1);
         }
         pointageBrutRepository.saveAll(pointages);
@@ -337,6 +443,7 @@ public class PresenceMergeService {
             context.hasNightPlan = special.getDateFin() != null && special.getDateFin().isAfter(special.getDateDebut());
             context.nightStart = trimToNull(special.getHeureDebut());
             context.nightEnd = trimToNull(special.getHeureFin());
+            context.specialDateFin = special.getDateFin();
         } else if (horaire != null) {
             HoraireDt dt = horaireDtRepository.findByHoraireIdAndJour(horaire.getId(), dayIndex(dateJour));
             if (dt != null) {
@@ -346,6 +453,8 @@ public class PresenceMergeService {
                 context.nightEnd = trimToNull(dt.getHeureFinNuit());
                 context.hasNightPlan = context.nightStart != null && context.nightEnd != null;
             }
+        }
+        if (horaire != null) {
             context.defaultNbHovertime = horaire.getDefaultNbHovertime();
             context.autoCloseDay = trimToNull(horaire.getHeureFermetureAutoJour());
             context.autoCloseNight = trimToNull(horaire.getHeureFermetureAutoNuit());
@@ -373,6 +482,38 @@ public class PresenceMergeService {
             end = end.plusHours(context.defaultNbHovertime);
         }
         return formatTime(end);
+    }
+
+    private LocalTime computeNightLimitWithOvertime(MergePlanContext context) {
+        LocalTime end = parseTime(context.nightEnd);
+        if (end == null) {
+            return null;
+        }
+        int overtime = context.defaultNbHovertime != null && context.defaultNbHovertime > 0
+                ? context.defaultNbHovertime
+                : 0;
+        return end.plusHours(overtime);
+    }
+
+    private boolean isArrivalBeforeOrEqualNightLimit(LocalTime arrival, LocalTime limit, LocalTime nightStart) {
+        if (arrival == null || limit == null) {
+            return false;
+        }
+        if (nightStart == null) {
+            return !arrival.isAfter(limit);
+        }
+        int arrivalMinutes = normalizeNightMinutes(arrival, nightStart);
+        int limitMinutes = normalizeNightMinutes(limit, nightStart);
+        return arrivalMinutes <= limitMinutes;
+    }
+
+    private int normalizeNightMinutes(LocalTime value, LocalTime nightStart) {
+        int minutes = value.getHour() * 60 + value.getMinute();
+        int startMinutes = nightStart.getHour() * 60 + nightStart.getMinute();
+        if (minutes < startMinutes) {
+            minutes += 24 * 60;
+        }
+        return minutes;
     }
 
     private EmploiEmploye resolveEmploiEmploye(Long employeId, LocalDate date) {
@@ -498,6 +639,7 @@ public class PresenceMergeService {
 
     private static class MergePlanContext {
         private boolean hasNightPlan;
+        private LocalDate specialDateFin;
         private String dayStart;
         private String dayEnd;
         private String nightStart;

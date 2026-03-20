@@ -92,6 +92,6 @@ public class CongeEmploye {
     private Integer rowscn;
 
     public enum StatutConge {
-        BROUILLON, SOUMIS, APPROUVE, EN_COURS, TERMINE, ANNULE, REJETE, FINALISE
+        BROUILLON, SOUMIS, APPROUVE, EN_COURS, TERMINE, ANNULE, REJETE
     }
 }

@@ -28,10 +28,16 @@ public class EntrepriseUpdateDTO {
     private String ville;
     
     private String adresse;
+
+    private String codePostal;
+
+    private String pays;
     
     private String telephone1;
     
     private String telephone2;
+
+    private String telephone3;
     
     private String fax;
     
